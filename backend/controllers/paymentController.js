@@ -58,11 +58,6 @@ class PaymentController {
 
                 Logger.info('M-Pesa Payment Successful', paymentData);
 
-                // TODO: Update your database here
-                // - Find user by checkoutRequestID or phoneNumber
-                // - Activate their membership
-                // - Update payment status
-
                 console.log('💰 PAYMENT SUCCESSFUL:', {
                     receipt: metadata.MpesaReceiptNumber,
                     amount: metadata.Amount,
@@ -88,10 +83,6 @@ class PaymentController {
                 });
 
                 console.log('❌ PAYMENT FAILED:', errorMessage);
-
-                // TODO: Update your database here
-                // - Mark payment as failed
-                // - Notify user if possible
 
                 // Send failure response to M-Pesa
                 res.json({
@@ -159,43 +150,6 @@ class PaymentController {
             res.json({
                 ResultCode: 1,
                 ResultDesc: "Confirmation failed"
-            });
-        }
-    }
-
-    // Test callback endpoint for development
-    async testCallback(req, res) {
-        try {
-            console.log('🧪 Test callback endpoint hit');
-            
-            // Simulate a successful payment callback
-            const testCallbackData = {
-                Body: {
-                    stkCallback: {
-                        MerchantRequestID: "test_" + Date.now(),
-                        CheckoutRequestID: "test_checkout_" + Date.now(),
-                        ResultCode: 0,
-                        ResultDesc: "The service request is processed successfully.",
-                        CallbackMetadata: {
-                            Item: [
-                                { Name: "Amount", Value: 1 },
-                                { Name: "MpesaReceiptNumber", Value: "TEST123456" },
-                                { Name: "TransactionDate", Value: "20231201120000" },
-                                { Name: "PhoneNumber", Value: 254712345678 }
-                            ]
-                        }
-                    }
-                }
-            };
-
-            // Process the test callback
-            await this.handleCallback({ body: testCallbackData }, res);
-
-        } catch (error) {
-            console.error('Test callback error:', error);
-            res.status(500).json({
-                status: 'error',
-                message: 'Test callback failed'
             });
         }
     }

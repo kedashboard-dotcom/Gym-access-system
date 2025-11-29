@@ -11,9 +11,6 @@ router.post('/validation', paymentController.handleValidation);
 // C2B Confirmation URL (Optional)
 router.post('/confirmation', paymentController.handleConfirmation);
 
-// Test callback endpoint (for development)
-router.post('/test-callback', paymentController.testCallback);
-
 // Payment verification endpoint
 router.post('/verify', async (req, res) => {
     try {

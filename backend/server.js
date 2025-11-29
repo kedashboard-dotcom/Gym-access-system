@@ -20,7 +20,7 @@ app.use((req, res, next) => {
 // 🎯 BASIC API ROUTES
 // ========================
 
-// Health check endpoint - THIS SHOULD WORK NOW
+// Health check endpoint
 app.get('/api/health', (req, res) => {
     console.log('✅ Health check endpoint hit!');
     res.json({
@@ -46,81 +46,17 @@ app.get('/api/test', (req, res) => {
     });
 });
 
-// Membership status check
-app.get('/api/members/status', (req, res) => {
-    const { membership_id, phone } = req.query;
-    console.log('✅ Status check:', { membership_id, phone });
-    
-    res.json({
-        status: 'success',
-        data: {
-            user: {
-                name: 'Test User',
-                phone: phone || '254712345678',
-                membership_id: membership_id || 'GYM001A1B2C',
-                status: 'active',
-                membership_type: 'standard',
-                membership_start: new Date().toISOString(),
-                membership_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-                days_remaining: 29,
-                rfid_card: '1234567890'
-            }
-        }
-    });
-});
+// ========================
+// 🎯 IMPORT ROUTES
+// ========================
 
-// Member registration
-app.post('/api/members/register', (req, res) => {
-    console.log('✅ Registration attempt:', req.body);
-    
-    const { name, phone, amount, membership_type } = req.body;
-    
-    // Basic validation
-    if (!name || !phone) {
-        return res.status(400).json({
-            status: 'error',
-            message: 'Name and phone number are required'
-        });
-    }
-    
-    // Simulate successful registration
-    const membership_id = 'GYM' + Date.now().toString().slice(-6) + Math.random().toString(36).substring(2, 5).toUpperCase();
-    
-    res.json({
-        status: 'success',
-        message: 'Registration received successfully!',
-        data: {
-            membership_id: membership_id,
-            checkout_request_id: 'req_' + Date.now(),
-            merchant_request_id: 'mreq_' + Date.now(),
-            note: 'This is a demo response. M-Pesa integration would be added later.'
-        }
-    });
-});
+// Import route files
+const memberRoutes = require('./routes/members');
+const paymentRoutes = require('./routes/payments');  // ADD PAYMENT ROUTES
 
-// Membership renewal
-app.post('/api/members/renew', (req, res) => {
-    console.log('✅ Renewal attempt:', req.body);
-    
-    const { membership_id, phone, amount } = req.body;
-    
-    if (!membership_id && !phone) {
-        return res.status(400).json({
-            status: 'error',
-            message: 'Membership ID or phone number is required'
-        });
-    }
-    
-    res.json({
-        status: 'success',
-        message: 'Renewal request received successfully!',
-        data: {
-            membership_id: membership_id || 'GYM001A1B2C',
-            checkout_request_id: 'renew_' + Date.now(),
-            merchant_request_id: 'mrenew_' + Date.now()
-        }
-    });
-});
+// Use routes
+app.use('/api/members', memberRoutes);
+app.use('/api/payments', paymentRoutes);  // ADD THIS LINE
 
 // ========================
 // 🎯 SERVE STATIC FILES
@@ -157,7 +93,10 @@ app.use('/api/*', (req, res) => {
             'GET /api/test',
             'GET /api/members/status',
             'POST /api/members/register',
-            'POST /api/members/renew'
+            'POST /api/members/renew',
+            'POST /api/payments/mpesa-callback',  // ADD THIS
+            'POST /api/payments/validation',      // ADD THIS
+            'POST /api/payments/confirmation'     // ADD THIS
         ]
     });
 });
@@ -194,13 +133,11 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log('   • GET  /api/members/status');
     console.log('   • POST /api/members/register');
     console.log('   • POST /api/members/renew');
+    console.log('   • POST /api/payments/mpesa-callback');  // ADD THIS
+    console.log('   • POST /api/payments/validation');      // ADD THIS
+    console.log('   • POST /api/payments/confirmation');    // ADD THIS
     console.log('='.repeat(60));
     console.log('🌐 Test URL: https://msingi.co.ke/api/health');
+    console.log('💳 Callback URL: https://msingi.co.ke/api/payments/mpesa-callback');
     console.log('='.repeat(60));
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-    console.log('SIGTERM received, shutting down gracefully');
-    process.exit(0);
 });
