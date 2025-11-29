@@ -1,74 +1,55 @@
-const fs = require('fs');
-const path = require('path');
-
-// Ensure logs directory exists
-const logsDir = path.join(__dirname, '../logs');
-if (!fs.existsSync(logsDir)) {
-    fs.mkdirSync(logsDir, { recursive: true });
-}
-
-class Logger {
-    static getLogFileName() {
-        const date = new Date().toISOString().split('T')[0];
-        return `app-${date}.log`;
-    }
-
-    static writeLog(level, message, data = null) {
-        const timestamp = new Date().toISOString();
-        const logFile = path.join(logsDir, this.getLogFileName());
-        
-        let logEntry = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
-        
-        if (data) {
-            if (data instanceof Error) {
-                logEntry += `\n    Error: ${data.message}`;
-                logEntry += `\n    Stack: ${data.stack}`;
-            } else if (typeof data === 'object') {
-                logEntry += `\n    Data: ${JSON.stringify(data, null, 2)}`;
-            } else {
-                logEntry += `\n    Data: ${data}`;
-            }
+// Simple console-based logger
+class SimpleLogger {
+    static debug(message, data = null) {
+        if (process.env.DEBUG_MODE === 'true') {
+            console.log(`[DEBUG] ${message}`, data || '');
         }
-        
-        logEntry += '\n' + '='.repeat(80) + '\n';
-        
-        // Write to file
-        fs.appendFileSync(logFile, logEntry, 'utf8');
-        
-        // Also log to console
-        console.log(`[${level.toUpperCase()}] ${message}`, data || '');
     }
-
+    
     static info(message, data = null) {
-        this.writeLog('info', message, data);
+        console.log(`[INFO] ${message}`, data || '');
     }
-
+    
     static error(message, data = null) {
-        this.writeLog('error', message, data);
+        console.error(`[ERROR] ${message}`, data || '');
     }
-
+    
     static warn(message, data = null) {
-        this.writeLog('warn', message, data);
+        console.warn(`[WARN] ${message}`, data || '');
     }
 }
 
 // Error handler middleware
 const errorHandler = (err, req, res, next) => {
-    Logger.error('Unhandled Error Occurred', {
-        error: {
-            message: err.message,
-            stack: err.stack
-        },
-        request: {
-            method: req.method,
-            url: req.url
-        }
-    });
+    console.error('Unhandled Error:', err.message);
+    
+    if (process.env.DEBUG_MODE === 'true') {
+        console.error('Stack:', err.stack);
+    }
 
-    res.status(err.status || 500).json({
+    let error = { ...err };
+    error.message = err.message;
+
+    // MySQL duplicate entry error
+    if (err.code === 'ER_DUP_ENTRY') {
+        error = { message: 'Duplicate entry found', status: 400 };
+    }
+
+    // MySQL connection error
+    if (err.code === 'ECONNREFUSED') {
+        error = { message: 'Database connection refused', status: 503 };
+    }
+
+    // M-Pesa API errors
+    if (err.message.includes('M-Pesa') || err.message.includes('MPesa')) {
+        console.error('M-Pesa Error:', err.message);
+    }
+
+    res.status(error.status || 500).json({
         status: 'error',
-        message: err.message || 'Internal Server Error'
+        message: error.message || 'Internal Server Error',
+        ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
     });
 };
 
-module.exports = { errorHandler, Logger };
+module.exports = { errorHandler, Logger: SimpleLogger };

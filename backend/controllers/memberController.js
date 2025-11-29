@@ -2,7 +2,6 @@ const User = require('../models/User');
 const mpesaService = require('../config/mpesa');
 const axtraxService = require('../utils/axtraxIntegration');
 const { validatePhone, validateName } = require('../utils/validation');
-const { Logger } = require('../middleware/errorHandler');
 
 class MemberController {
     // New member registration
@@ -12,17 +11,11 @@ class MemberController {
         try {
             const { name, phone, amount = 2000, membership_type = 'standard' } = req.body;
 
-            Logger.info('Member registration attempt', {
-                name,
-                phone,
-                amount,
-                membership_type,
-                ip: req.ip
-            });
+            console.log('Member registration attempt:', { name, phone, amount, membership_type });
 
             // Validation
             if (!name || !phone) {
-                Logger.warn('Registration validation failed - missing fields', { name, phone });
+                console.log('Registration validation failed - missing fields');
                 return res.status(400).json({
                     status: 'error',
                     message: 'Name and phone number are required'
@@ -30,7 +23,7 @@ class MemberController {
             }
 
             if (!validateName(name)) {
-                Logger.warn('Registration validation failed - invalid name', { name });
+                console.log('Registration validation failed - invalid name');
                 return res.status(400).json({
                     status: 'error',
                     message: 'Please enter a valid name (letters and spaces only)'
@@ -38,7 +31,7 @@ class MemberController {
             }
 
             if (!validatePhone(phone)) {
-                Logger.warn('Registration validation failed - invalid phone', { phone });
+                console.log('Registration validation failed - invalid phone');
                 return res.status(400).json({
                     status: 'error',
                     message: 'Please enter a valid Kenyan phone number (e.g., 254712345678)'
@@ -48,10 +41,7 @@ class MemberController {
             // Check if user already has active membership
             const existingUser = await User.findByPhone(phone);
             if (existingUser && existingUser.status === 'active' && new Date(existingUser.membership_end) > new Date()) {
-                Logger.warn('Registration failed - user already has active membership', {
-                    phone,
-                    existingMembershipId: existingUser.membership_id
-                });
+                console.log('Registration failed - user already has active membership');
                 return res.status(400).json({
                     status: 'error',
                     message: 'You already have an active membership. Please use membership renewal instead.',
@@ -61,10 +51,7 @@ class MemberController {
 
             // Create user record
             const user = await User.create({ name, phone, amount, membership_type });
-            Logger.info('User record created successfully', {
-                membershipId: user.membership_id,
-                userId: user.id
-            });
+            console.log('User record created successfully:', user.membership_id);
             
             // Initiate M-Pesa payment
             const paymentResponse = await mpesaService.initiateSTKPush(
@@ -76,9 +63,8 @@ class MemberController {
 
             if (paymentResponse.ResponseCode === '0') {
                 const duration = Date.now() - startTime;
-                Logger.info('Member registration completed successfully', {
+                console.log('Member registration completed successfully:', {
                     membershipId: user.membership_id,
-                    checkoutRequestId: paymentResponse.CheckoutRequestID,
                     duration: `${duration}ms`
                 });
 
@@ -92,20 +78,15 @@ class MemberController {
                     }
                 });
             } else {
-                Logger.error('M-Pesa payment initiation failed', {
-                    membershipId: user.membership_id,
-                    response: paymentResponse
-                });
+                console.error('M-Pesa payment initiation failed:', paymentResponse);
                 throw new Error(paymentResponse.ResponseDescription || 'Payment initiation failed');
             }
 
         } catch (error) {
             const duration = Date.now() - startTime;
-            Logger.error('Member registration failed', {
+            console.error('Member registration failed:', {
                 error: error.message,
-                requestBody: req.body,
-                duration: `${duration}ms`,
-                ip: req.ip
+                duration: `${duration}ms`
             });
             
             res.status(500).json({
@@ -122,15 +103,10 @@ class MemberController {
         try {
             const { membership_id, phone, amount = 2000 } = req.body;
 
-            Logger.info('Membership renewal attempt', {
-                membership_id,
-                phone,
-                amount,
-                ip: req.ip
-            });
+            console.log('Membership renewal attempt:', { membership_id, phone, amount });
 
             if (!membership_id && !phone) {
-                Logger.warn('Renewal validation failed - no identifier provided');
+                console.log('Renewal validation failed - no identifier provided');
                 return res.status(400).json({
                     status: 'error',
                     message: 'Membership ID or phone number is required'
@@ -146,18 +122,14 @@ class MemberController {
             }
 
             if (!user) {
-                Logger.warn('Renewal failed - user not found', { membership_id, phone });
+                console.log('Renewal failed - user not found');
                 return res.status(404).json({
                     status: 'error',
                     message: 'Membership not found. Please check your Membership ID or phone number.'
                 });
             }
 
-            Logger.info('User found for renewal', {
-                userId: user.id,
-                membershipId: user.membership_id,
-                currentStatus: user.status
-            });
+            console.log('User found for renewal:', user.membership_id);
 
             // Initiate M-Pesa payment
             const paymentResponse = await mpesaService.initiateSTKPush(
@@ -169,9 +141,8 @@ class MemberController {
 
             if (paymentResponse.ResponseCode === '0') {
                 const duration = Date.now() - startTime;
-                Logger.info('Membership renewal initiated successfully', {
+                console.log('Membership renewal initiated successfully:', {
                     membershipId: user.membership_id,
-                    checkoutRequestId: paymentResponse.CheckoutRequestID,
                     duration: `${duration}ms`
                 });
 
@@ -185,20 +156,15 @@ class MemberController {
                     }
                 });
             } else {
-                Logger.error('M-Pesa renewal initiation failed', {
-                    membershipId: user.membership_id,
-                    response: paymentResponse
-                });
+                console.error('M-Pesa renewal initiation failed:', paymentResponse);
                 throw new Error(paymentResponse.ResponseDescription || 'Payment initiation failed');
             }
 
         } catch (error) {
             const duration = Date.now() - startTime;
-            Logger.error('Membership renewal failed', {
+            console.error('Membership renewal failed:', {
                 error: error.message,
-                requestBody: req.body,
-                duration: `${duration}ms`,
-                ip: req.ip
+                duration: `${duration}ms`
             });
             
             res.status(500).json({
@@ -215,7 +181,7 @@ class MemberController {
         try {
             const { membership_id, phone } = req.query;
 
-            Logger.debug('Membership status check', { membership_id, phone, ip: req.ip });
+            console.log('Membership status check:', { membership_id, phone });
 
             if (!membership_id && !phone) {
                 return res.status(400).json({
@@ -233,7 +199,7 @@ class MemberController {
             }
 
             if (!user) {
-                Logger.warn('Status check - user not found', { membership_id, phone });
+                console.log('Status check - user not found');
                 return res.status(404).json({
                     status: 'error',
                     message: 'Membership not found'
@@ -247,7 +213,7 @@ class MemberController {
             const isActive = user.status === 'active' && daysRemaining > 0;
 
             const duration = Date.now() - startTime;
-            Logger.info('Membership status retrieved successfully', {
+            console.log('Membership status retrieved successfully:', {
                 membershipId: user.membership_id,
                 status: user.status,
                 isActive,
@@ -274,11 +240,9 @@ class MemberController {
 
         } catch (error) {
             const duration = Date.now() - startTime;
-            Logger.error('Membership status check failed', {
+            console.error('Membership status check failed:', {
                 error: error.message,
-                query: req.query,
-                duration: `${duration}ms`,
-                ip: req.ip
+                duration: `${duration}ms`
             });
             
             res.status(500).json({
@@ -291,11 +255,11 @@ class MemberController {
     // Get all active members (admin)
     async getActiveMembers(req, res) {
         try {
-            Logger.info('Admin request for active members', { ip: req.ip });
+            console.log('Admin request for active members');
             
             const members = await User.getActiveMembers();
             
-            Logger.info('Active members retrieved', { count: members.length });
+            console.log('Active members retrieved:', { count: members.length });
             
             res.json({
                 status: 'success',
@@ -313,10 +277,7 @@ class MemberController {
             });
 
         } catch (error) {
-            Logger.error('Failed to retrieve active members', {
-                error: error.message,
-                ip: req.ip
-            });
+            console.error('Failed to retrieve active members:', error.message);
             
             res.status(500).json({
                 status: 'error',

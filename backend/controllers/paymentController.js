@@ -1,155 +1,97 @@
-const { Logger } = require('../middleware/errorHandler');
+const User = require('../models/User');
+const mpesaService = require('../config/mpesa');
+const axtraxService = require('../utils/axtraxIntegration');
 
 class PaymentController {
-    // Handle M-Pesa STK Push Callback
+    // Handle M-Pesa callback
     async handleCallback(req, res) {
         try {
-            console.log('📱 M-Pesa Callback Received:', JSON.stringify(req.body, null, 2));
-            
-            const callbackData = req.body;
-            
-            // Check if this is a valid callback
-            if (!callbackData.Body || !callbackData.Body.stkCallback) {
-                Logger.error('Invalid M-Pesa callback structure', { callbackData });
-                return res.json({
-                    ResultCode: 1,
-                    ResultDesc: "Invalid callback structure"
-                });
-            }
+            console.log('M-Pesa Callback Received');
 
-            const stkCallback = callbackData.Body.stkCallback;
-            const resultCode = stkCallback.ResultCode;
-            const merchantRequestID = stkCallback.MerchantRequestID;
-            const checkoutRequestID = stkCallback.CheckoutRequestID;
+            const callbackResult = mpesaService.handleCallback(req.body);
 
-            Logger.info('M-Pesa Callback Processing', {
-                resultCode,
-                merchantRequestID,
-                checkoutRequestID
-            });
-
-            if (resultCode === 0) {
-                // Payment was successful
-                const callbackMetadata = stkCallback.CallbackMetadata;
-                if (!callbackMetadata || !callbackMetadata.Item) {
-                    Logger.error('Missing metadata in successful callback', { stkCallback });
-                    return res.json({
-                        ResultCode: 1,
-                        ResultDesc: "Missing metadata"
-                    });
-                }
-
-                const metadata = {};
-                callbackMetadata.Item.forEach(item => {
-                    metadata[item.Name] = item.Value;
-                });
-
-                const paymentData = {
-                    success: true,
-                    merchantRequestID,
-                    checkoutRequestID,
-                    metadata: {
+            if (callbackResult.success) {
+                const { metadata, merchantRequestID, checkoutRequestID } = callbackResult;
+                
+                // Find user by account reference (membership_id)
+                const user = await User.findByMembershipID(metadata.PhoneNumber);
+                
+                if (user) {
+                    // Update user payment details and activate membership
+                    const paymentData = {
+                        mpesa_receipt: metadata.MpesaReceiptNumber,
                         amount: metadata.Amount,
-                        mpesaReceiptNumber: metadata.MpesaReceiptNumber,
-                        transactionDate: metadata.TransactionDate,
-                        phoneNumber: metadata.PhoneNumber
+                        payment_date: new Date(metadata.TransactionDate)
+                    };
+
+                    const isRenewal = user.status === 'active' && new Date(user.membership_end) > new Date();
+                    
+                    let updateResult;
+                    if (isRenewal) {
+                        updateResult = await User.extendMembership(user.membership_id, paymentData);
+                    } else {
+                        updateResult = await User.updateAfterPayment(user.membership_id, paymentData);
                     }
-                };
 
-                Logger.info('M-Pesa Payment Successful', paymentData);
+                    if (updateResult) {
+                        // Sync with AxtraxNG access control system
+                        try {
+                            await axtraxService.syncUserWithAxtrax(user);
+                            console.log(`User ${user.membership_id} synced with AxtraxNG`);
+                        } catch (axtraxError) {
+                            console.error('Axtrax sync error:', axtraxError);
+                            // Continue even if Axtrax sync fails
+                        }
 
-                console.log('💰 PAYMENT SUCCESSFUL:', {
-                    receipt: metadata.MpesaReceiptNumber,
-                    amount: metadata.Amount,
-                    phone: metadata.PhoneNumber,
-                    date: metadata.TransactionDate
-                });
+                        console.log(`Payment successful for ${user.membership_id}`);
+                    }
+                }
 
                 // Send success response to M-Pesa
                 res.json({
                     ResultCode: 0,
                     ResultDesc: "Success"
                 });
-
             } else {
-                // Payment failed
-                const errorMessage = stkCallback.ResultDesc || 'Payment failed';
+                console.log('Payment failed:', callbackResult.error);
                 
-                Logger.warn('M-Pesa Payment Failed', {
-                    resultCode,
-                    errorMessage,
-                    merchantRequestID,
-                    checkoutRequestID
-                });
-
-                console.log('❌ PAYMENT FAILED:', errorMessage);
-
                 // Send failure response to M-Pesa
                 res.json({
-                    ResultCode: 0, // Still return 0 to acknowledge receipt
-                    ResultDesc: "Failed payment acknowledged"
+                    ResultCode: 1,
+                    ResultDesc: "Failed"
                 });
             }
 
         } catch (error) {
-            Logger.error('M-Pesa Callback Processing Error', {
-                error: error.message,
-                stack: error.stack
-            });
-
-            console.error('❌ CALLBACK PROCESSING ERROR:', error);
-
-            // Always return success to M-Pesa to prevent retries
+            console.error('Callback handling error:', error);
             res.json({
-                ResultCode: 0,
-                ResultDesc: "Callback received with errors"
+                ResultCode: 1,
+                ResultDesc: "Failed"
             });
         }
     }
 
-    // C2B Validation URL (Optional)
-    async handleValidation(req, res) {
+    // Manual payment verification
+    async verifyPayment(req, res) {
         try {
-            console.log('🔍 C2B Validation Request:', JSON.stringify(req.body, null, 2));
-            
-            // For sandbox, always validate the transaction
-            const response = {
-                ResultCode: 0,
-                ResultDesc: "Success",
-                ThirdPartyTransID: "1234567890"
-            };
+            const { checkout_request_id } = req.body;
 
-            res.json(response);
+            console.log('Payment verification request:', checkout_request_id);
 
-        } catch (error) {
-            console.error('Validation error:', error);
             res.json({
-                ResultCode: 1,
-                ResultDesc: "Validation failed"
-            });
-        }
-    }
-
-    // C2B Confirmation URL (Optional)
-    async handleConfirmation(req, res) {
-        try {
-            console.log('✅ C2B Confirmation Request:', JSON.stringify(req.body, null, 2));
-            
-            // Process the confirmed transaction
-            const transactionData = req.body;
-            
-            // TODO: Update your database with confirmed transaction
-            
-            res.json({
-                ResultCode: 0,
-                ResultDesc: "Success"
+                status: 'success',
+                message: 'Payment verification endpoint',
+                data: {
+                    checkout_request_id,
+                    status: 'processing'
+                }
             });
 
         } catch (error) {
-            console.error('Confirmation error:', error);
-            res.json({
-                ResultCode: 1,
-                ResultDesc: "Confirmation failed"
+            console.error('Payment verification error:', error);
+            res.status(500).json({
+                status: 'error',
+                message: 'Payment verification failed'
             });
         }
     }

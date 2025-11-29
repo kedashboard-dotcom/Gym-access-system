@@ -1,6 +1,5 @@
 const axios = require('axios');
 const moment = require('moment');
-const { Logger } = require('../middleware/errorHandler');
 require('dotenv').config();
 
 class MpesaService {
@@ -16,7 +15,7 @@ class MpesaService {
             ? 'https://api.safaricom.co.ke'
             : 'https://sandbox.safaricom.co.ke';
 
-        Logger.info('M-Pesa service initialized', {
+        console.log('M-Pesa service initialized:', {
             environment: this.environment,
             businessShortCode: this.businessShortCode
         });
@@ -25,7 +24,7 @@ class MpesaService {
     // Generate access token
     async generateAccessToken() {
         try {
-            Logger.debug('Generating M-Pesa access token');
+            console.log('Generating M-Pesa access token');
             const auth = Buffer.from(`${this.consumerKey}:${this.consumerSecret}`).toString('base64');
             
             const response = await axios.get(`${this.baseURL}/oauth/v1/generate?grant_type=client_credentials`, {
@@ -34,13 +33,10 @@ class MpesaService {
                 }
             });
 
-            Logger.debug('M-Pesa access token generated successfully');
+            console.log('M-Pesa access token generated successfully');
             return response.data.access_token;
         } catch (error) {
-            Logger.error('Failed to generate M-Pesa access token', {
-                error: error.response?.data || error.message,
-                url: `${this.baseURL}/oauth/v1/generate`
-            });
+            console.error('Failed to generate M-Pesa access token:', error.response?.data || error.message);
             throw new Error('Failed to generate M-Pesa access token');
         }
     }
@@ -49,14 +45,14 @@ class MpesaService {
     generatePassword() {
         const timestamp = moment().format('YYYYMMDDHHmmss');
         const password = Buffer.from(`${this.businessShortCode}${this.passkey}${timestamp}`).toString('base64');
-        Logger.debug('Generated M-Pesa password', { timestamp });
+        console.log('Generated M-Pesa password');
         return { password, timestamp };
     }
 
     // Initiate STK Push
     async initiateSTKPush(phone, amount, accountReference, description) {
         try {
-            Logger.info('Initiating M-Pesa STK Push', {
+            console.log('Initiating M-Pesa STK Push:', {
                 phone,
                 amount,
                 accountReference,
@@ -80,7 +76,7 @@ class MpesaService {
                 TransactionDesc: description
             };
 
-            Logger.debug('Sending STK Push request', { requestData });
+            console.log('Sending STK Push request');
 
             const response = await axios.post(
                 `${this.baseURL}/mpesa/stkpush/v1/processrequest`,
@@ -93,20 +89,14 @@ class MpesaService {
                 }
             );
 
-            Logger.info('M-Pesa STK Push initiated successfully', {
+            console.log('M-Pesa STK Push initiated successfully:', {
                 responseCode: response.data.ResponseCode,
-                checkoutRequestId: response.data.CheckoutRequestID,
-                merchantRequestId: response.data.MerchantRequestID
+                checkoutRequestId: response.data.CheckoutRequestID
             });
 
             return response.data;
         } catch (error) {
-            Logger.error('Failed to initiate M-Pesa STK Push', {
-                error: error.response?.data || error.message,
-                phone,
-                amount,
-                accountReference
-            });
+            console.error('Failed to initiate M-Pesa STK Push:', error.response?.data || error.message);
             throw new Error('Failed to initiate M-Pesa payment');
         }
     }
@@ -114,7 +104,7 @@ class MpesaService {
     // Handle M-Pesa callback
     handleCallback(callbackData) {
         try {
-            Logger.info('M-Pesa callback received', { callbackData });
+            console.log('M-Pesa callback received');
 
             const result = callbackData.Body.stkCallback;
             const resultCode = result.ResultCode;
@@ -142,7 +132,7 @@ class MpesaService {
                     }
                 };
 
-                Logger.info('M-Pesa payment successful', resultData);
+                console.log('M-Pesa payment successful:', resultData);
                 return resultData;
             } else {
                 // Payment failed
@@ -153,14 +143,11 @@ class MpesaService {
                     error: result.ResultDesc
                 };
 
-                Logger.warn('M-Pesa payment failed', resultData);
+                console.warn('M-Pesa payment failed:', resultData);
                 return resultData;
             }
         } catch (error) {
-            Logger.error('Error processing M-Pesa callback', {
-                error: error.message,
-                callbackData: callbackData
-            });
+            console.error('Error processing M-Pesa callback:', error.message);
             throw new Error('Failed to process M-Pesa callback');
         }
     }
