@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test M-Pesa</title>
+</head>
+<body>
+    <h1>Test M-Pesa Integration</h1>
+    
+    <div>
+        <input type="text" id="name" placeholder="Name" value="Test User">
+        <input type="text" id="phone" placeholder="Phone" value="254712345678">
+        <input type="number" id="amount" value="1">
+        <button onclick="testMpesa()">Test M-Pesa</button>
+    </div>
+    
+    <div id="result" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc;"></div>
+
+    <script>
+        async function testMpesa() {
+            const data = {
+                name: document.getElementById('name').value,
+                phone: document.getElementById('phone').value,
+                amount: parseInt(document.getElementById('amount').value)
+            };
+            
+            try {
+                const response = await fetch('/api/debug-registration', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                document.getElementById('result').innerHTML = 
+                    '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
+                    
+            } catch (error) {
+                document.getElementById('result').innerHTML = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
