@@ -8,6 +8,12 @@ const PORT = process.env.PORT || 3000;
 
 console.log('🚀 Starting Msingi Gym System...');
 
+// Force log environment variables for debugging
+console.log('🔧 Environment Check:');
+console.log('MPESA_CONSUMER_KEY:', process.env.MPESA_CONSUMER_KEY ? 'SET' : 'MISSING');
+console.log('MPESA_ENVIRONMENT:', process.env.MPESA_ENVIRONMENT);
+console.log('DB_HOST:', process.env.DB_HOST || 'Not set');
+
 // Basic CORS - Allow all origins for now
 app.use(cors());
 
@@ -37,6 +43,68 @@ db.testConnection()
 
 // Import models
 const User = require('./models/User');
+
+// =====================
+// DEBUG ENDPOINT - ADD THIS FIRST
+// =====================
+
+app.post('/api/debug-registration', async (req, res) => {
+    try {
+        console.log('🔍 DEBUG: Registration attempt:', req.body);
+        
+        const { name, phone, amount = 2000 } = req.body;
+        
+        // Test M-Pesa service directly
+        console.log('🔍 Testing M-Pesa service...');
+        const mpesaService = require('./config/mpesa');
+        
+        console.log('🔍 M-Pesa Config:', {
+            environment: mpesaService.environment,
+            businessShortCode: mpesaService.businessShortCode,
+            hasConsumerKey: !!mpesaService.consumerKey,
+            hasConsumerSecret: !!mpesaService.consumerSecret
+        });
+        
+        // Try to generate access token
+        try {
+            const token = await mpesaService.generateAccessToken();
+            console.log('✅ M-Pesa Access Token:', token ? 'SUCCESS' : 'FAILED');
+        } catch (tokenError) {
+            console.error('❌ M-Pesa Token Error:', tokenError.message);
+        }
+        
+        // Try STK Push
+        try {
+            const response = await mpesaService.initiateSTKPush(
+                phone,
+                amount,
+                'TEST123',
+                'Test Payment'
+            );
+            console.log('✅ M-Pesa STK Response:', response);
+            
+            res.json({
+                status: 'success',
+                message: 'M-Pesa debug completed',
+                data: response
+            });
+            
+        } catch (stkError) {
+            console.error('❌ M-Pesa STK Error:', stkError.message);
+            res.json({
+                status: 'error',
+                message: 'M-Pesa failed: ' + stkError.message
+            });
+        }
+        
+    } catch (error) {
+        console.error('❌ Debug error:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Debug failed: ' + error.message
+        });
+    }
+});
 
 // =====================
 // API ROUTES
@@ -446,6 +514,7 @@ app.use('/api/*', (req, res) => {
         message: 'API endpoint not found: ' + req.originalUrl,
         available_endpoints: [
             'GET /api/health',
+            'POST /api/debug-registration',
             'POST /api/members/register', 
             'POST /api/members/renew',
             'GET /api/members/status',
@@ -484,6 +553,7 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log('='.repeat(60));
     console.log('📋 Available Endpoints:');
     console.log('   • GET  /api/health');
+    console.log('   • POST /api/debug-registration');
     console.log('   • POST /api/members/register');
     console.log('   • POST /api/members/renew'); 
     console.log('   • GET  /api/members/status');
