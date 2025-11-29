@@ -1,8 +1,11 @@
 
-// API Base URL for cPanel production
-const API_BASE_URL = window.location.origin + '/api';
 
-console.log('Production API Base URL:', API_BASE_URL);
+// API Base URL for cPanel production - FIXED
+const API_BASE_URL = '/api';  // Relative path for same domain
+
+console.log('🚀 Gym System Initialized');
+console.log('📍 API Base URL:', API_BASE_URL);
+
 // DOM Elements
 const registrationForm = document.getElementById('registrationForm');
 const renewalForm = document.getElementById('renewalForm');

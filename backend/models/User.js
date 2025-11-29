@@ -96,7 +96,7 @@ class User {
       payment_date
     } = paymentData;
 
-    // Calculate new end date (extend from current end date or now if expired)
+    // Calculate new end date
     const currentEnd = user.membership_end && user.membership_end > new Date() 
       ? moment(user.membership_end)
       : moment();

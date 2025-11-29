@@ -18,7 +18,7 @@ function validateEnvironment() {
   if (missing.length > 0) {
     console.error('❌ Missing required environment variables:');
     missing.forEach(key => console.error(`   - ${key}`));
-    console.log('\n💡 Please check your .env file or run: node setup-env.js');
+    console.log('\n💡 Please check your .env file');
     process.exit(1);
   }
 

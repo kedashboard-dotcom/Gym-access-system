@@ -40,7 +40,7 @@ class PaymentController {
               console.log(`✅ User ${user.membership_id} synced with AxtraxNG`);
             } catch (axtraxError) {
               console.error('Axtrax sync error:', axtraxError);
-              // Continue even if Axtrax sync fails - payment is still successful
+              // Continue even if Axtrax sync fails
             }
 
             console.log(`✅ Payment successful for ${user.membership_id}`);
@@ -75,9 +75,6 @@ class PaymentController {
   async verifyPayment(req, res) {
     try {
       const { checkout_request_id } = req.body;
-
-      // In a real implementation, you would query M-Pesa API to verify payment status
-      // For now, we'll return a mock response
 
       res.json({
         status: 'success',

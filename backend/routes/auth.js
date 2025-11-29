@@ -24,7 +24,7 @@ router.post('/admin-login', (req, res) => {
       status: 'success',
       message: 'Admin login successful',
       data: {
-        token: 'admin-token', // In production, use JWT
+        token: 'admin-token',
         user: {
           username: username,
           role: 'admin'

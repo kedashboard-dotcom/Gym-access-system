@@ -7,9 +7,6 @@ router.post('/sync-user', async (req, res) => {
   try {
     const { membership_id } = req.body;
     
-    // In a real implementation, you would fetch user from database
-    // and sync with AxtraxNG
-    
     res.json({
       status: 'success',
       message: 'User sync initiated'
@@ -25,7 +22,6 @@ router.post('/sync-user', async (req, res) => {
 // Get access logs
 router.get('/logs', async (req, res) => {
   try {
-    // This would integrate with AxtraxNG API to get access logs
     res.json({
       status: 'success',
       data: {

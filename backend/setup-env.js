@@ -89,10 +89,6 @@ DEBUG_MODE=false
     console.log('2. Update M-Pesa credentials with your actual values');
     console.log('3. Run: npm install');
     console.log('4. Run: npm start');
-    console.log('\n⚠️  Security Notice:');
-    console.log('   - Keep your .env file secure');
-    console.log('   - Do not commit it to version control');
-    console.log('   - Change default passwords in production');
   } catch (error) {
     console.error('❌ Failed to create .env file:', error.message);
   }

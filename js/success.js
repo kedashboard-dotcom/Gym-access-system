@@ -1,6 +1,7 @@
 
-// API Base URL for cPanel production
-const API_BASE_URL = window.location.origin + '/api';
+
+// API Base URL for cPanel production - FIXED
+const API_BASE_URL = '/api';  // Relative path for same domain
 
 // Success Page JavaScript
 class SuccessPage {

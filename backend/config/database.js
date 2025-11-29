@@ -49,7 +49,7 @@ const query = async (sql, params = []) => {
   }
 };
 
-// Execute helper function (for INSERT, UPDATE, DELETE)
+// Execute helper function
 const execute = async (sql, params = []) => {
   try {
     const [results] = await pool.execute(sql, params);
