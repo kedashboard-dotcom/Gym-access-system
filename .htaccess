@@ -1,13 +1,16 @@
-# Redirect root to frontend/index.html
+# Update the .htaccess file content
+Set-Content -Path ".htaccess" -Value @"
 RewriteEngine On
 
-# Redirect exactly root domain to frontend/index.html
-RewriteRule ^$ /frontend/index.html [L]
+# Redirect root to index.html
+RewriteRule ^$ /index.html [L]
 
-# Optional: Redirect without trailing slash
-RewriteRule ^index\.php$ /frontend/index.html [L,R=301]
+# Allow direct access to static files (CSS, JS, images)
+RewriteCond %{REQUEST_URI} \.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ [NC]
+RewriteRule ^ - [L]
 
-# Ensure direct access to frontend/index.html works
-<Files "index.html">
-    Require all granted
-</Files>
+# Redirect all other requests to index.html (for SPA routing)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ /index.html [L]
+"@
