@@ -1,143 +1,127 @@
 const express = require('express');
-const cors = require('cors');
-const path = require('path');
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Request logging middleware
+// Enable CORS for all routes
 app.use((req, res, next) => {
-    console.log(`📥 ${new Date().toISOString()} - ${req.method} ${req.url}`);
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-api-key');
+    
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
     next();
 });
 
-// ========================
-// 🎯 BASIC API ROUTES
-// ========================
+// Parse JSON bodies
+app.use(express.json());
 
-// Health check endpoint
+// Simple request logging
+app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    next();
+});
+
+// HEALTH CHECK - This should ALWAYS work
 app.get('/api/health', (req, res) => {
-    console.log('✅ Health check endpoint hit!');
+    console.log('✅ Health check received');
     res.json({
         status: 'success',
-        message: '🎉 Msingi Gym API is WORKING!',
+        message: 'Server is working!',
         timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV || 'development',
-        nodeVersion: process.version
+        port: PORT
     });
 });
 
-// Test endpoint
+// TEST ENDPOINT
 app.get('/api/test', (req, res) => {
-    console.log('✅ Test endpoint hit!');
+    console.log('✅ Test endpoint hit');
+    res.json({
+        status: 'success', 
+        message: 'Test endpoint working!',
+        data: { test: true }
+    });
+});
+
+// SIMPLE REGISTRATION ENDPOINT
+app.post('/api/members/register', (req, res) => {
+    console.log('✅ Registration attempt:', req.body);
+    
+    const { name, phone, amount = 2000 } = req.body;
+    
+    // Basic validation
+    if (!name || !phone) {
+        return res.status(400).json({
+            status: 'error',
+            message: 'Name and phone are required'
+        });
+    }
+    
+    // Generate fake membership ID
+    const membership_id = 'GYM' + Date.now();
+    
     res.json({
         status: 'success',
-        message: '✅ Test endpoint is working!',
+        message: 'DEMO: Registration would process here',
         data: {
-            test: true,
-            server: 'Node.js Express',
-            time: new Date().toISOString()
+            membership_id: membership_id,
+            checkout_request_id: 'demo_' + Date.now(),
+            name: name,
+            phone: phone,
+            amount: amount
         }
     });
 });
 
-// ========================
-// 🎯 IMPORT ROUTES
-// ========================
+// Serve static files from root
+app.use(express.static(require('path').join(__dirname, '../')));
 
-// Import route files
-const memberRoutes = require('./routes/members');
-const paymentRoutes = require('./routes/payments');  // ADD PAYMENT ROUTES
-
-// Use routes
-app.use('/api/members', memberRoutes);
-app.use('/api/payments', paymentRoutes);  // ADD THIS LINE
-
-// ========================
-// 🎯 SERVE STATIC FILES
-// ========================
-
-// Serve frontend files from root
-app.use(express.static(path.join(__dirname, '../')));
-
-// Serve frontend pages
+// Serve HTML pages
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '../index.html'));
+    res.sendFile(require('path').join(__dirname, '../index.html'));
 });
 
 app.get('/renewal', (req, res) => {
-    res.sendFile(path.join(__dirname, '../renewal.html'));
+    res.sendFile(require('path').join(__dirname, '../renewal.html'));
 });
 
 app.get('/success', (req, res) => {
-    res.sendFile(path.join(__dirname, '../success.html'));
+    res.sendFile(require('path').join(__dirname, '../success.html'));
 });
 
-// ========================
-// 🎯 ERROR HANDLING
-// ========================
-
-// 404 handler for API routes
-app.use('/api/*', (req, res) => {
-    console.log('❌ API endpoint not found:', req.originalUrl);
+// Catch-all for API routes
+app.all('/api/*', (req, res) => {
     res.status(404).json({
         status: 'error',
-        message: 'API endpoint not found: ' + req.originalUrl,
-        available_endpoints: [
-            'GET /api/health',
-            'GET /api/test',
-            'GET /api/members/status',
-            'POST /api/members/register',
-            'POST /api/members/renew',
-            'POST /api/payments/mpesa-callback',  // ADD THIS
-            'POST /api/payments/validation',      // ADD THIS
-            'POST /api/payments/confirmation'     // ADD THIS
-        ]
+        message: 'API endpoint not found: ' + req.url,
+        available: ['GET /api/health', 'GET /api/test', 'POST /api/members/register']
     });
 });
 
-// 404 handler for frontend routes
-app.use('*', (req, res) => {
-    res.status(404).sendFile(path.join(__dirname, '../index.html'));
+// Catch-all for frontend - serve index.html
+app.get('*', (req, res) => {
+    res.sendFile(require('path').join(__dirname, '../index.html'));
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-    console.error('❌ Server error:', err);
-    res.status(500).json({
-        status: 'error',
-        message: 'Internal server error'
-    });
-});
-
-// ========================
-// 🎯 START SERVER
-// ========================
-
+// Start server
 app.listen(PORT, '0.0.0.0', () => {
-    console.log('='.repeat(60));
-    console.log('🚀 MSINGI GYM SYSTEM - NODE.JS SERVER STARTED!');
-    console.log('='.repeat(60));
+    console.log('='.repeat(50));
+    console.log('🚀 SIMPLE SERVER STARTED SUCCESSFULLY!');
+    console.log('='.repeat(50));
     console.log(`📍 Port: ${PORT}`);
-    console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`📍 Node.js: ${process.version}`);
-    console.log('='.repeat(60));
-    console.log('✅ Available Endpoints:');
-    console.log('   • GET  /api/health');
-    console.log('   • GET  /api/test');
-    console.log('   • GET  /api/members/status');
-    console.log('   • POST /api/members/register');
-    console.log('   • POST /api/members/renew');
-    console.log('   • POST /api/payments/mpesa-callback');  // ADD THIS
-    console.log('   • POST /api/payments/validation');      // ADD THIS
-    console.log('   • POST /api/payments/confirmation');    // ADD THIS
-    console.log('='.repeat(60));
-    console.log('🌐 Test URL: https://msingi.co.ke/api/health');
-    console.log('💳 Callback URL: https://msingi.co.ke/api/payments/mpesa-callback');
-    console.log('='.repeat(60));
+    console.log(`📍 Health: http://localhost:${PORT}/api/health`);
+    console.log(`📍 Test: http://localhost:${PORT}/api/test`);
+    console.log('='.repeat(50));
+    console.log('✅ Server is ready to accept requests!');
+    console.log('='.repeat(50));
+});
+
+// Handle errors
+process.on('uncaughtException', (error) => {
+    console.error('❌ Uncaught Exception:', error.message);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
 });
