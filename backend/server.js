@@ -392,6 +392,37 @@ app.get('/api/members/status', async (req, res) => {
     }
 });
 
+// CHECK MPESA PAYMENT STATUS
+app.post('/api/check-mpesa', async (req, res) => {
+    try {
+        console.log('M-Pesa status check:', req.body);
+        
+        const { checkout_request_id } = req.body;
+
+        if (!checkout_request_id) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Checkout request ID is required'
+            });
+        }
+
+        const mpesaService = require('./config/mpesa');
+        const status = await mpesaService.checkPaymentStatus(checkout_request_id);
+
+        res.json({
+            status: 'success',
+            data: status
+        });
+
+    } catch (error) {
+        console.error('M-Pesa status check error:', error.message);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to check payment status: ' + error.message
+        });
+    }
+});
+
 // M-PESA CALLBACK HANDLER
 app.post('/api/payments/mpesa-callback', async (req, res) => {
     try {
@@ -518,6 +549,7 @@ app.use('/api/*', (req, res) => {
             'POST /api/members/register', 
             'POST /api/members/renew',
             'GET /api/members/status',
+            'POST /api/check-mpesa',
             'GET /api/members/active',
             'POST /api/payments/mpesa-callback',
             'GET /api/admin/stats'
@@ -557,7 +589,10 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log('   • POST /api/members/register');
     console.log('   • POST /api/members/renew'); 
     console.log('   • GET  /api/members/status');
+    console.log('   • POST /api/check-mpesa');
+    console.log('   • GET  /api/members/active');
     console.log('   • POST /api/payments/mpesa-callback');
+    console.log('   • GET  /api/admin/stats');
     console.log('='.repeat(60));
     console.log('✅ Server ready! Test: https://msingi.co.ke/api/health');
     console.log('='.repeat(60));
