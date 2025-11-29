@@ -1,7 +1,5 @@
-
-
-// API Base URL for cPanel production - FIXED
-const API_BASE_URL = '/api';  // Relative path for same domain
+// API Base URL - Fixed for cPanel deployment
+const API_BASE_URL = window.location.origin + '/api';
 
 console.log('🚀 Gym System Initialized');
 console.log('📍 API Base URL:', API_BASE_URL);
@@ -207,10 +205,12 @@ statusForm.addEventListener('submit', async (e) => {
     await checkMembershipStatus(queryParam);
 });
 
-// API Functions
+// API Functions with better error handling
 async function submitRegistration(data) {
     try {
         showLoading('Sending payment request to your phone...');
+        
+        console.log('Sending registration request:', data);
         
         const response = await fetch(`${API_BASE_URL}/members/register`, {
             method: 'POST',
@@ -220,7 +220,19 @@ async function submitRegistration(data) {
             body: JSON.stringify(data)
         });
         
+        // Check if response is JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            console.error('Non-JSON response:', text.substring(0, 200));
+            throw new Error('Server returned HTML instead of JSON. Check API endpoint.');
+        }
+        
         const result = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(result.message || `HTTP error! status: ${response.status}`);
+        }
         
         if (result.status === 'success') {
             showSuccess('Payment request sent! Check your phone to complete the M-Pesa transaction. Your access will activate automatically after payment.');
@@ -234,7 +246,15 @@ async function submitRegistration(data) {
         
     } catch (error) {
         console.error('Registration error:', error);
-        alert('Registration failed: ' + error.message);
+        
+        // More specific error messages
+        if (error.message.includes('Failed to fetch')) {
+            alert('Network error: Cannot connect to server. Please check your internet connection and try again.');
+        } else if (error.message.includes('HTML instead of JSON')) {
+            alert('Server configuration error: Please contact support.');
+        } else {
+            alert('Registration failed: ' + error.message);
+        }
     } finally {
         hideLoading();
     }
@@ -244,6 +264,8 @@ async function submitRenewal(data) {
     try {
         showLoading('Processing your renewal request...');
         
+        console.log('Sending renewal request:', data);
+        
         const response = await fetch(`${API_BASE_URL}/members/renew`, {
             method: 'POST',
             headers: {
@@ -252,7 +274,19 @@ async function submitRenewal(data) {
             body: JSON.stringify(data)
         });
         
+        // Check if response is JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            console.error('Non-JSON response:', text.substring(0, 200));
+            throw new Error('Server returned HTML instead of JSON. Check API endpoint.');
+        }
+        
         const result = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(result.message || `HTTP error! status: ${response.status}`);
+        }
         
         if (result.status === 'success') {
             showSuccess('Renewal request sent! Check your phone to complete the M-Pesa transaction. Your access will be extended automatically.');
@@ -266,7 +300,14 @@ async function submitRenewal(data) {
         
     } catch (error) {
         console.error('Renewal error:', error);
-        alert('Renewal failed: ' + error.message);
+        
+        if (error.message.includes('Failed to fetch')) {
+            alert('Network error: Cannot connect to server. Please check your internet connection and try again.');
+        } else if (error.message.includes('HTML instead of JSON')) {
+            alert('Server configuration error: Please contact support.');
+        } else {
+            alert('Renewal failed: ' + error.message);
+        }
     } finally {
         hideLoading();
     }
@@ -274,7 +315,18 @@ async function submitRenewal(data) {
 
 async function checkMembershipStatus(queryParam) {
     try {
+        console.log('Checking status with:', queryParam);
+        
         const response = await fetch(`${API_BASE_URL}/members/status?${queryParam}`);
+        
+        // Check if response is JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            console.error('Non-JSON response:', text.substring(0, 200));
+            throw new Error('Server configuration error');
+        }
+        
         const result = await response.json();
         
         const statusResult = document.getElementById('statusResult');
@@ -363,11 +415,24 @@ document.getElementById('membershipType')?.addEventListener('change', function()
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Msingi Gym Access System initialized');
+    console.log('Current domain:', window.location.origin);
+    console.log('API Base URL:', API_BASE_URL);
     
-    // Set current year in footer if needed
-    const currentYear = new Date().getFullYear();
-    const yearElement = document.querySelector('.copyright');
-    if (yearElement) {
-        yearElement.textContent = `© ${currentYear} Msingi Gym. All rights reserved.`;
-    }
+    // Test API connection on load
+    testAPIConnection();
 });
+
+// Test API connection
+async function testAPIConnection() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/health`);
+        if (response.ok) {
+            const result = await response.json();
+            console.log('✅ API Connection successful:', result);
+        } else {
+            console.warn('⚠️ API Health check failed');
+        }
+    } catch (error) {
+        console.error('❌ API Connection failed:', error.message);
+    }
+}

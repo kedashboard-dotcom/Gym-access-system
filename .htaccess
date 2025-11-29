@@ -4,41 +4,38 @@ RewriteEngine On
 RewriteCond %{HTTPS} off
 RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-# API routes to Node.js backend
-RewriteCond %{REQUEST_URI} ^/api/
+# API routes - proxy to Node.js backend
+RewriteCond %{REQUEST_URI} ^/api/(.*)$
 RewriteRule ^api/(.*)$ http://localhost:3000/api/$1 [P,L]
 
-# Serve static files directly
-RewriteCond %{REQUEST_FILENAME} -f [OR]
-RewriteCond %{REQUEST_FILENAME} -d
-RewriteRule ^ - [L]
+# If the requested path is not a valid file
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
 
-# Specific page routes
-RewriteRule ^renewal$ /renewal.html [L]
-RewriteRule ^success$ /success.html [L]
+# Route to appropriate HTML files
+RewriteRule ^renewal/?$ /renewal.html [L]
+RewriteRule ^success/?$ /success.html [L]
+RewriteRule ^/?$ /index.html [L]
 
 # Security Headers
 Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
 Header always set X-Content-Type-Options nosniff
 Header always set X-Frame-Options DENY
 Header always set X-XSS-Protection "1; mode=block"
+Header always set Referrer-Policy "strict-origin-when-cross-origin"
 
 # CORS for API
 Header always set Access-Control-Allow-Origin "*"
 Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
 Header always set Access-Control-Allow-Headers "Content-Type, Authorization, x-api-key"
 
-# Cache control
+# Cache control for static assets
+<FilesMatch "\.(css|js|png|jpg|jpeg|gif|ico|svg)$">
+    Header set Cache-Control "max-age=31536000, public"
+</FilesMatch>
+
 <FilesMatch "\.(html|htm)$">
     Header set Cache-Control "max-age=3600, must-revalidate"
-</FilesMatch>
-
-<FilesMatch "\.(css|js)$">
-    Header set Cache-Control "max-age=31536000, public"
-</FilesMatch>
-
-<FilesMatch "\.(png|jpg|jpeg|gif|ico|svg|webp)$">
-    Header set Cache-Control "max-age=31536000, public"
 </FilesMatch>
 
 # Gzip compression
@@ -54,3 +51,7 @@ Header always set Access-Control-Allow-Headers "Content-Type, Authorization, x-a
     AddOutputFilterByType DEFLATE application/x-javascript
     AddOutputFilterByType DEFLATE application/json
 </IfModule>
+
+# Error documents
+ErrorDocument 404 /index.html
+ErrorDocument 500 /index.html
