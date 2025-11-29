@@ -4,15 +4,19 @@ RewriteEngine On
 RewriteCond %{HTTPS} off
 RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-# API routes - proxy to Node.js backend
-RewriteCond %{REQUEST_URI} ^/api/(.*)$
-RewriteRule ^api/(.*)$ http://localhost:3000/api/$1 [P,L]
-
-# If the requested path is not a valid file
-RewriteCond %{REQUEST_FILENAME} !-f
+# Remove trailing slashes
 RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)/$ /$1 [L,R=301]
 
-# Route to appropriate HTML files
+# For cPanel Node.js - Don't proxy API calls, let Node.js handle them directly
+# Since your app is running on the main domain, API calls should go directly to Node.js
+
+# Serve static files directly
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Frontend routes - serve HTML files
 RewriteRule ^renewal/?$ /renewal.html [L]
 RewriteRule ^success/?$ /success.html [L]
 RewriteRule ^/?$ /index.html [L]
@@ -22,14 +26,13 @@ Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains
 Header always set X-Content-Type-Options nosniff
 Header always set X-Frame-Options DENY
 Header always set X-XSS-Protection "1; mode=block"
-Header always set Referrer-Policy "strict-origin-when-cross-origin"
 
 # CORS for API
 Header always set Access-Control-Allow-Origin "*"
 Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
 Header always set Access-Control-Allow-Headers "Content-Type, Authorization, x-api-key"
 
-# Cache control for static assets
+# Cache control
 <FilesMatch "\.(css|js|png|jpg|jpeg|gif|ico|svg)$">
     Header set Cache-Control "max-age=31536000, public"
 </FilesMatch>
@@ -37,21 +40,3 @@ Header always set Access-Control-Allow-Headers "Content-Type, Authorization, x-a
 <FilesMatch "\.(html|htm)$">
     Header set Cache-Control "max-age=3600, must-revalidate"
 </FilesMatch>
-
-# Gzip compression
-<IfModule mod_deflate.c>
-    AddOutputFilterByType DEFLATE text/plain
-    AddOutputFilterByType DEFLATE text/html
-    AddOutputFilterByType DEFLATE text/xml
-    AddOutputFilterByType DEFLATE text/css
-    AddOutputFilterByType DEFLATE application/xml
-    AddOutputFilterByType DEFLATE application/xhtml+xml
-    AddOutputFilterByType DEFLATE application/rss+xml
-    AddOutputFilterByType DEFLATE application/javascript
-    AddOutputFilterByType DEFLATE application/x-javascript
-    AddOutputFilterByType DEFLATE application/json
-</IfModule>
-
-# Error documents
-ErrorDocument 404 /index.html
-ErrorDocument 500 /index.html
