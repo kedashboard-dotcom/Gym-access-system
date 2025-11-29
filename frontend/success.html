@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Successful - Msingi Gym</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .success-hero {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 3rem 1rem;
+            text-align: center;
+            border-radius: var(--border-radius);
+            margin-bottom: 2rem;
+        }
+        
+        .success-details {
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .detail-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid #28a745;
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .detail-row:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        
+        .detail-label {
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+        
+        .detail-value {
+            color: var(--text-light);
+            text-align: right;
+        }
+        
+        .action-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        
+        .next-steps {
+            background: #e7f3ff;
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            margin: 2rem 0;
+            border-left: 4px solid #667eea;
+        }
+        
+        .step {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: white;
+            border-radius: 8px;
+        }
+        
+        .step:last-child {
+            margin-bottom: 0;
+        }
+        
+        .step-number {
+            background: #667eea;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        
+        .qr-code {
+            text-align: center;
+            padding: 1rem;
+            background: white;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        
+        @media (max-width: 768px) {
+            .action-buttons {
+                grid-template-columns: 1fr;
+            }
+            
+            .detail-row {
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+            
+            .detail-value {
+                text-align: left;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <i class="fas fa-check-circle"></i>
+                <h1>Membership Activated!</h1>
+            </div>
+            <p class="tagline">Welcome to Msingi Gym - Your fitness journey begins now!</p>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Success Hero -->
+            <section class="success-hero">
+                <div class="hero-content">
+                    <i class="fas fa-check-circle" style="font-size: 4rem; margin-bottom: 1rem;"></i>
+                    <h2>Payment Successful!</h2>
+                    <p>Your gym membership has been activated and access has been granted</p>
+                </div>
+            </section>
+
+            <!-- Membership Details -->
+            <section class="success-details">
+                <h3 style="text-align: center; margin-bottom: 2rem;">
+                    <i class="fas fa-id-card"></i> Membership Details
+                </h3>
+                
+                <div class="detail-card">
+                    <div class="detail-row">
+                        <span class="detail-label">Membership ID:</span>
+                        <span class="detail-value" id="membershipId">GYM123ABC456</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Full Name:</span>
+                        <span class="detail-value" id="memberName">John Doe</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Phone Number:</span>
+                        <span class="detail-value" id="memberPhone">254712345678</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Membership Plan:</span>
+                        <span class="detail-value" id="membershipPlan">Standard</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Amount Paid:</span>
+                        <span class="detail-value" id="amountPaid">KSh 2,000</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Activation Date:</span>
+                        <span class="detail-value" id="activationDate">15 Jan 2024</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Expiry Date:</span>
+                        <span class="detail-value" id="expiryDate">14 Feb 2024</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">RFID Card Number:</span>
+                        <span class="detail-value" id="rfidNumber">1234567890</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">M-Pesa Receipt:</span>
+                        <span class="detail-value" id="mpesaReceipt">RE123456789</span>
+                    </div>
+                </div>
+
+                <!-- Status Badge -->
+                <div style="text-align: center; margin: 1.5rem 0;">
+                    <span class="status-badge" id="statusBadge" style="
+                        background: #28a745;
+                        color: white;
+                        padding: 0.5rem 1.5rem;
+                        border-radius: 20px;
+                        font-weight: bold;
+                        font-size: 1.1rem;
+                    ">ACTIVE</span>
+                </div>
+            </section>
+
+            <!-- Next Steps -->
+            <section class="next-steps">
+                <h3 style="margin-bottom: 1.5rem;">
+                    <i class="fas fa-road"></i> Next Steps
+                </h3>
+                
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div>
+                        <h4>Visit the Gym</h4>
+                        <p>Come to Msingi Gym at your convenience. We're open 24/7!</p>
+                        <small><strong>Address:</strong> Fitness Center Building, 2nd Floor, Nairobi</small>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div>
+                        <h4>Collect Your RFID Card</h4>
+                        <p>Present your Membership ID at the reception to receive your RFID access card</p>
+                        <small>Keep this card safe - it's your key to the gym!</small>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div>
+                        <h4>Start Your Workout</h4>
+                        <p>Tap your RFID card at the entrance and begin your fitness journey</p>
+                        <small>First time? Ask our staff for a facility orientation</small>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Gym Information -->
+            <section class="success-details">
+                <h3 style="text-align: center; margin-bottom: 1.5rem;">
+                    <i class="fas fa-info-circle"></i> Gym Information
+                </h3>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+                    <div class="detail-card">
+                        <h4><i class="fas fa-clock"></i> Operating Hours</h4>
+                        <p><strong>24/7 Access</strong><br>Your RFID card grants you access anytime</p>
+                    </div>
+                    
+                    <div class="detail-card">
+                        <h4><i class="fas fa-map-marker-alt"></i> Location</h4>
+                        <p><strong>Msingi Gym</strong><br>
+                        Fitness Center Building, 2nd Floor<br>
+                        Nairobi, Kenya</p>
+                    </div>
+                    
+                    <div class="detail-card">
+                        <h4><i class="fas fa-phone"></i> Contact</h4>
+                        <p><strong>Support:</strong> +254 700 000 000<br>
+                        <strong>Email:</strong> support@msingi.co.ke</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Action Buttons -->
+            <section class="action-buttons">
+                <button class="btn-secondary" onclick="printPage()">
+                    <i class="fas fa-print"></i> Print Details
+                </button>
+                
+                <button class="btn-primary" onclick="goToHome()">
+                    <i class="fas fa-home"></i> Back to Home
+                </button>
+                
+                <button class="btn-secondary" onclick="checkAnotherMembership()">
+                    <i class="fas fa-search"></i> Check Another Membership
+                </button>
+                
+                <button class="btn-primary" onclick="shareMembership()">
+                    <i class="fas fa-share-alt"></i> Share Details
+                </button>
+            </section>
+
+            <!-- Quick Actions -->
+            <section class="success-details">
+                <h3 style="text-align: center; margin-bottom: 1.5rem;">
+                    <i class="fas fa-bolt"></i> Quick Actions
+                </h3>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                    <button class="btn-secondary" onclick="downloadReceipt()" style="padding: 1rem;">
+                        <i class="fas fa-receipt"></i><br>
+                        Download Receipt
+                    </button>
+                    
+                    <button class="btn-secondary" onclick="addToCalendar()" style="padding: 1rem;">
+                        <i class="fas fa-calendar-plus"></i><br>
+                        Add Reminder
+                    </button>
+                    
+                    <button class="btn-secondary" onclick="viewFacilityMap()" style="padding: 1rem;">
+                        <i class="fas fa-map"></i><br>
+                        View Location Map
+                    </button>
+                    
+                    <button class="btn-secondary" onclick="contactSupport()" style="padding: 1rem;">
+                        <i class="fas fa-headset"></i><br>
+                        Contact Support
+                    </button>
+                </div>
+            </section>
+
+            <!-- Renewal Reminder -->
+            <section class="next-steps" style="background: #fff3cd; border-left-color: #ffc107;">
+                <h3 style="margin-bottom: 1rem;">
+                    <i class="fas fa-bell"></i> Renewal Reminder
+                </h3>
+                <p>Your membership will automatically expire on <strong id="expiryDateReminder">14 Feb 2024</strong>. 
+                   You'll receive an SMS reminder 7 days before expiry.</p>
+                <button class="btn-primary" onclick="setupAutoRenewal()" style="margin-top: 1rem;">
+                    <i class="fas fa-sync-alt"></i> Set Up Auto-Renewal
+                </button>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-content">
+                <div class="contact-info">
+                    <h4><i class="fas fa-headset"></i> Need Help?</h4>
+                    <p>Email: support@msingi.co.ke</p>
+                    <p>Phone: +254 700 000 000</p>
+                </div>
+                <div class="security-badge">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Secure M-Pesa Payment Completed</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Share Modal -->
+    <div id="shareModal" class="modal">
+        <div class="modal-content">
+            <h3><i class="fas fa-share-alt"></i> Share Membership Details</h3>
+            <p>Share your membership information securely:</p>
+            
+            <div class="share-options" style="display: grid; gap: 1rem; margin: 1.5rem 0;">
+                <button class="btn-secondary" onclick="shareViaWhatsApp()">
+                    <i class="fab fa-whatsapp"></i> WhatsApp
+                </button>
+                <button class="btn-secondary" onclick="shareViaEmail()">
+                    <i class="fas fa-envelope"></i> Email
+                </button>
+                <button class="btn-secondary" onclick="copyToClipboard()">
+                    <i class="fas fa-copy"></i> Copy Details
+                </button>
+            </div>
+            
+            <button class="btn-primary" onclick="closeModal('shareModal')">
+                Close
+            </button>
+        </div>
+    </div>
+
+    <script src="js/success.js"></script>
+</body>
+</html>

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Msingi Gym - 24/7 Access Control System</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <i class="fas fa-dumbbell"></i>
+                <h1>Msingi Gym</h1>
+            </div>
+            <p class="tagline">24/7 Smart Access • M-Pesa Payments</p>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Hero Section -->
+            <section class="hero">
+                <div class="hero-content">
+                    <h2>Get 24/7 Gym Access in Minutes</h2>
+                    <p>Join our premium fitness community with seamless M-Pesa payments and instant RFID access</p>
+                    <div class="features">
+                        <div class="feature">
+                            <i class="fas fa-bolt"></i>
+                            <span>Instant Activation</span>
+                        </div>
+                        <div class="feature">
+                            <i class="fas fa-mobile-alt"></i>
+                            <span>M-Pesa Payments</span>
+                        </div>
+                        <div class="feature">
+                            <i class="fas fa-door-open"></i>
+                            <span>24/7 Access</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Registration Form -->
+            <section class="form-section">
+                <div class="form-container">
+                    <div class="form-tabs">
+                        <button class="tab-button active" data-tab="new-member">New Membership</button>
+                        <button class="tab-button" data-tab="renew-member">Renew Membership</button>
+                    </div>
+
+                    <!-- New Member Form -->
+                    <form id="registrationForm" class="form active">
+                        <h3>Start Your Fitness Journey</h3>
+                        
+                        <div class="form-group">
+                            <label for="name">Full Name</label>
+                            <input type="text" id="name" name="name" required 
+                                   placeholder="Enter your full name">
+                            <div class="error-message" id="nameError"></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="phone">Phone Number</label>
+                            <input type="tel" id="phone" name="phone" required 
+                                   placeholder="254712345678">
+                            <div class="error-message" id="phoneError"></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="membershipType">Membership Plan</label>
+                            <select id="membershipType" name="membership_type">
+                                <option value="standard">Standard (KSh 2,000/month)</option>
+                                <option value="premium">Premium (KSh 3,500/month)</option>
+                                <option value="vip">VIP (KSh 5,000/month)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="amount">Amount (KSh)</label>
+                            <input type="number" id="amount" name="amount" 
+                                   value="2000" min="500" max="50000" required>
+                        </div>
+
+                        <button type="submit" class="btn-primary" id="registerBtn">
+                            <i class="fas fa-lock"></i>
+                            Pay with M-Pesa & Get Access
+                        </button>
+
+                        <div class="form-info">
+                            <p><i class="fas fa-info-circle"></i> You'll receive an M-Pesa prompt on your phone to complete payment</p>
+                        </div>
+                    </form>
+
+                    <!-- Renewal Form -->
+                    <form id="renewalForm" class="form">
+                        <h3>Renew Your Membership</h3>
+                        
+                        <div class="form-group">
+                            <label for="membershipId">Membership ID</label>
+                            <input type="text" id="membershipId" name="membership_id" 
+                                   placeholder="Enter your GYM membership ID">
+                            <div class="error-message" id="membershipIdError"></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="renewalAmount">Amount (KSh)</label>
+                            <input type="number" id="renewalAmount" name="amount" 
+                                   value="2000" min="500" max="50000" required>
+                        </div>
+
+                        <div class="divider">
+                            <span>OR</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="renewalPhone">Phone Number</label>
+                            <input type="tel" id="renewalPhone" name="phone" 
+                                   placeholder="254712345678">
+                            <div class="error-message" id="renewalPhoneError"></div>
+                        </div>
+
+                        <button type="submit" class="btn-primary" id="renewBtn">
+                            <i class="fas fa-sync-alt"></i>
+                            Renew with M-Pesa
+                        </button>
+
+                        <div class="form-info">
+                            <p><i class="fas fa-info-circle"></i> Your access will be extended automatically after payment</p>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Status Check Section -->
+            <section class="status-section">
+                <div class="status-container">
+                    <h3>Check Your Membership Status</h3>
+                    <form id="statusForm" class="status-form">
+                        <input type="text" id="statusInput" placeholder="Enter Membership ID or Phone">
+                        <button type="submit" class="btn-secondary">
+                            <i class="fas fa-search"></i> Check Status
+                        </button>
+                    </form>
+                    <div id="statusResult" class="status-result"></div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-content">
+                <div class="contact-info">
+                    <h4><i class="fas fa-headset"></i> Support</h4>
+                    <p>Email: support@msingi.co.ke</p>
+                    <p>Phone: +254 700 000 000</p>
+                </div>
+                <div class="security-badge">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Secure M-Pesa Payments</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Loading Modal -->
+    <div id="loadingModal" class="modal">
+        <div class="modal-content">
+            <div class="loader">
+                <i class="fas fa-spinner fa-spin"></i>
+            </div>
+            <h3>Processing Your Request</h3>
+            <p>Please wait while we set up your membership...</p>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div id="successModal" class="modal">
+        <div class="modal-content success">
+            <div class="success-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <h3>Payment Successful!</h3>
+            <p id="successMessage">Your membership has been activated. Check your phone for confirmation.</p>
+            <button class="btn-primary" onclick="closeModal('successModal')">Continue</button>
+        </div>
+    </div>
+
+    <script src="js/script.js"></script>
+</body>
+</html>

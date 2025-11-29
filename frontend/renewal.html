@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Renew Membership - Msingi Gym</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <i class="fas fa-sync-alt"></i>
+                <h1>Renew Membership</h1>
+            </div>
+            <a href="index.html" class="back-link">
+                <i class="fas fa-arrow-left"></i> Back to Home
+            </a>
+        </header>
+
+        <main class="main-content">
+            <div class="form-container" style="max-width: 500px; margin: 2rem auto;">
+                <form id="renewalForm" class="form active">
+                    <h3>Renew Your Gym Access</h3>
+                    
+                    <div class="form-group">
+                        <label for="membershipId">Membership ID</label>
+                        <input type="text" id="membershipId" name="membership_id" 
+                               placeholder="Enter your GYM membership ID">
+                        <div class="error-message" id="membershipIdError"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="amount">Renewal Amount (KSh)</label>
+                        <input type="number" id="amount" name="amount" 
+                               value="2000" min="500" max="50000" required>
+                    </div>
+
+                    <div class="divider">
+                        <span>OR</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="phone">Phone Number</label>
+                        <input type="tel" id="phone" name="phone" 
+                               placeholder="254712345678">
+                        <div class="error-message" id="phoneError"></div>
+                    </div>
+
+                    <button type="submit" class="btn-primary" id="renewBtn">
+                        <i class="fas fa-sync-alt"></i>
+                        Renew with M-Pesa
+                    </button>
+
+                    <div class="form-info">
+                        <p><i class="fas fa-info-circle"></i> Your access will be extended automatically after payment</p>
+                    </div>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/renewal.js"></script>
+</body>
+</html>
