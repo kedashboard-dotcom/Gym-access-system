@@ -1,11 +1,10 @@
--- Gym Access Control System Database Schema
--- Created for Msingi Gym 24/7 Access System
+-- Msingi Gym System Database Schema for cPanel
+-- Remove CREATE DATABASE line since cPanel creates it for us
 
-CREATE DATABASE IF NOT EXISTS gym_access_system;
-USE gym_access_system;
+USE `msingico_gym`;
 
 -- Users table for membership management
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(100) NOT NULL,
     phone VARCHAR(15) NOT NULL,
@@ -30,7 +29,7 @@ CREATE TABLE users (
 );
 
 -- Payments table for transaction history
-CREATE TABLE payments (
+CREATE TABLE IF NOT EXISTS payments (
     id INT PRIMARY KEY AUTO_INCREMENT,
     user_id INT NOT NULL,
     membership_id VARCHAR(20) NOT NULL,
@@ -45,14 +44,14 @@ CREATE TABLE payments (
     status ENUM('pending', 'completed', 'failed', 'cancelled') DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
-    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_membership_id (membership_id),
     INDEX idx_phone (phone),
     INDEX idx_status (status)
 );
 
--- Access logs table (would be integrated with AxtraxNG)
-CREATE TABLE access_logs (
+-- Access logs table
+CREATE TABLE IF NOT EXISTS access_logs (
     id INT PRIMARY KEY AUTO_INCREMENT,
     user_id INT,
     membership_id VARCHAR(20),
@@ -69,7 +68,7 @@ CREATE TABLE access_logs (
 );
 
 -- System settings table
-CREATE TABLE system_settings (
+CREATE TABLE IF NOT EXISTS system_settings (
     id INT PRIMARY KEY AUTO_INCREMENT,
     setting_key VARCHAR(50) UNIQUE NOT NULL,
     setting_value TEXT,
@@ -78,7 +77,7 @@ CREATE TABLE system_settings (
 );
 
 -- Insert default settings
-INSERT INTO system_settings (setting_key, setting_value, description) VALUES
+INSERT IGNORE INTO system_settings (setting_key, setting_value, description) VALUES
 ('membership_price_standard', '2000', 'Standard membership monthly price'),
 ('membership_price_premium', '3500', 'Premium membership monthly price'),
 ('membership_price_vip', '5000', 'VIP membership monthly price'),
@@ -87,7 +86,7 @@ INSERT INTO system_settings (setting_key, setting_value, description) VALUES
 ('system_mode', 'production', 'System operation mode');
 
 -- Audit table for important system events
-CREATE TABLE audit_logs (
+CREATE TABLE IF NOT EXISTS audit_logs (
     id INT PRIMARY KEY AUTO_INCREMENT,
     event_type VARCHAR(50) NOT NULL,
     description TEXT,
@@ -102,7 +101,7 @@ CREATE TABLE audit_logs (
 );
 
 -- Create views for common queries
-CREATE VIEW active_members AS
+CREATE OR REPLACE VIEW active_members AS
 SELECT 
     id,
     name,
@@ -118,7 +117,7 @@ FROM users
 WHERE status = 'active' 
 AND membership_end > NOW();
 
-CREATE VIEW recent_payments AS
+CREATE OR REPLACE VIEW recent_payments AS
 SELECT 
     p.*,
     u.name,
@@ -127,15 +126,15 @@ FROM payments p
 JOIN users u ON p.user_id = u.id
 ORDER BY p.created_at DESC;
 
--- Sample data for testing
-INSERT INTO users (name, phone, membership_id, amount, membership_type, status, membership_start, membership_end) VALUES
+-- Sample data for testing (optional)
+INSERT IGNORE INTO users (name, phone, membership_id, amount, membership_type, status, membership_start, membership_end) VALUES
 ('John Doe', '254712345678', 'GYM001A1B2C', 2000.00, 'standard', 'active', NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY)),
 ('Jane Smith', '254723456789', 'GYM002D3E4F', 3500.00, 'premium', 'active', NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY));
 
 DELIMITER //
 
 -- Trigger to update user status when membership expires
-CREATE TRIGGER update_user_status_on_expiry
+CREATE TRIGGER IF NOT EXISTS update_user_status_on_expiry
 BEFORE UPDATE ON users
 FOR EACH ROW
 BEGIN
@@ -145,7 +144,7 @@ BEGIN
 END//
 
 -- Stored procedure for membership renewal
-CREATE PROCEDURE RenewMembership(
+CREATE PROCEDURE IF NOT EXISTS RenewMembership(
     IN p_membership_id VARCHAR(20),
     IN p_amount DECIMAL(10,2),
     IN p_mpesa_receipt VARCHAR(50)
@@ -155,7 +154,7 @@ BEGIN
     DECLARE current_end_date DATETIME;
     
     -- Check if user exists
-    SELECT COUNT(*), membership_end INTO user_exists, current_end_date
+    SELECT COUNT(*), COALESCE(membership_end, NOW()) INTO user_exists, current_end_date
     FROM users 
     WHERE membership_id = p_membership_id;
     

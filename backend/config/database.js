@@ -3,12 +3,17 @@ require('dotenv').config();
 
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT || 3306,
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'gym_access_system',
+  charset: process.env.DB_CHARSET || 'utf8mb4',
+  timezone: process.env.DB_TIMEZONE || '+00:00',
   waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
+  connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT) || 10,
+  queueLimit: parseInt(process.env.DB_QUEUE_LIMIT) || 0,
+  acquireTimeout: parseInt(process.env.DB_ACQUIRE_TIMEOUT) || 60000,
+  timeout: parseInt(process.env.DB_TIMEOUT) || 60000
 };
 
 const pool = mysql.createPool(dbConfig);
@@ -18,6 +23,13 @@ const testConnection = async () => {
   try {
     const connection = await pool.getConnection();
     console.log('✅ Connected to MySQL database');
+    
+    // Test basic query
+    const [results] = await connection.execute('SELECT 1 as test');
+    if (results[0].test === 1) {
+      console.log('✅ Database query test successful');
+    }
+    
     connection.release();
     return true;
   } catch (error) {
@@ -37,8 +49,20 @@ const query = async (sql, params = []) => {
   }
 };
 
+// Execute helper function (for INSERT, UPDATE, DELETE)
+const execute = async (sql, params = []) => {
+  try {
+    const [results] = await pool.execute(sql, params);
+    return results;
+  } catch (error) {
+    console.error('Database execute error:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   pool,
   testConnection,
-  query
+  query,
+  execute
 };

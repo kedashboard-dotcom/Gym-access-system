@@ -1,6 +1,8 @@
-// API Base URL - Update this to your backend URL
-const API_BASE_URL = 'http://localhost:3000/api';
 
+// API Base URL for cPanel production
+const API_BASE_URL = window.location.origin + '/api';
+
+console.log('Production API Base URL:', API_BASE_URL);
 // DOM Elements
 const registrationForm = document.getElementById('registrationForm');
 const renewalForm = document.getElementById('renewalForm');

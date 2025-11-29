@@ -1,3 +1,7 @@
+
+// API Base URL for cPanel production
+const API_BASE_URL = window.location.origin + '/api';
+
 // Success Page JavaScript
 class SuccessPage {
     constructor() {
