@@ -10,10 +10,11 @@ console.log('🚀 Starting Msingi Gym System...');
 
 // Force log environment variables for debugging
 console.log('🔧 Environment Check:');
-console.log('MPESA_CONSUMER_KEY:', process.env.MPESA_CONSUMER_KEY ? 'SET' : 'MISSING');
 console.log('MPESA_ENVIRONMENT:', process.env.MPESA_ENVIRONMENT);
+console.log('MPESA_CONSUMER_KEY:', process.env.MPESA_CONSUMER_KEY ? 'SET' : 'MISSING');
 console.log('DB_HOST:', process.env.DB_HOST || 'Not set');
 console.log('AXTRAX_ENABLED:', process.env.AXTRAX_ENABLED || 'false');
+console.log('MPESA_CALLBACK_URL:', process.env.MPESA_CALLBACK_URL || 'Not set');
 
 // Basic CORS - Allow all origins for now
 app.use(cors());
@@ -24,14 +25,14 @@ app.use(express.urlencoded({ extended: true }));
 
 // Simple request logging with detailed M-Pesa callback logging
 app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    const timestamp = new Date().toISOString();
+    console.log(`${timestamp} - ${req.method} ${req.url}`);
     
     // Special logging for M-Pesa callbacks
     if (req.url.includes('mpesa-callback')) {
         console.log('🔔 M-Pesa Callback Detected!');
         console.log('   IP Address:', req.ip);
         console.log('   User Agent:', req.headers['user-agent']);
-        console.log('   Headers:', JSON.stringify(req.headers, null, 2));
         
         if (req.method === 'GET') {
             console.log('   📥 GET Request for validation');
@@ -269,15 +270,26 @@ app.post('/api/payments/mpesa-callback', async (req, res) => {
             });
             
             try {
-                // Find and update user by phone number
-                const user = await User.findByPhone(metadata.phoneNumber);
+                // Find and update user by phone number - FIXED: Look by membership_id not phone
+                // The callback metadata has phone number, but we need to find user
+                // Try to find by phone first
+                let user = await User.findByPhone(metadata.phoneNumber);
+                
+                if (!user) {
+                    // If not found by phone, try to find any pending payment user
+                    const [pendingUsers] = await db.query(
+                        "SELECT * FROM users WHERE status = 'pending_payment' ORDER BY created_at DESC LIMIT 1"
+                    );
+                    user = pendingUsers[0];
+                }
+                
                 if (user) {
                     console.log('👤 User found:', user.membership_id, user.name);
                     
                     const paymentData = {
                         mpesa_receipt: metadata.mpesaReceiptNumber,
                         amount: metadata.amount,
-                        payment_date: new Date()
+                        payment_date: new Date(metadata.transactionDate || new Date())
                     };
 
                     const isRenewal = user.status === 'active';
@@ -292,7 +304,7 @@ app.post('/api/payments/mpesa-callback', async (req, res) => {
                     // AXTRAXNG INTEGRATION - Sync after successful payment
                     try {
                         const axtraxService = require('./utils/axtraxIntegration');
-                        console.log('🔄 AxtraxNG sync after payment for:', user.membership_id);
+                        console.log('🔄 Attempting AxtraxNG sync for:', user.membership_id);
                         
                         const axtraxResult = await axtraxService.syncUserWithAxtrax(user);
                         console.log('✅ AxtraxNG sync completed:', axtraxResult);
@@ -302,6 +314,8 @@ app.post('/api/payments/mpesa-callback', async (req, res) => {
                     }
                 } else {
                     console.log('❌ User not found for phone:', metadata.phoneNumber);
+                    // Create a log for manual follow-up
+                    console.log('⚠️ Manual check required: Payment received but user not found');
                 }
             } catch (dbError) {
                 console.log('❌ Payment update failed:', dbError.message);
@@ -379,14 +393,14 @@ app.post('/api/payments/test-callback', async (req, res) => {
 });
 
 // =====================
-// DEBUG ENDPOINT
+// DEBUG & TEST ENDPOINTS
 // =====================
 
 app.post('/api/debug-registration', async (req, res) => {
     try {
         console.log('🔍 DEBUG: Registration attempt:', req.body);
         
-        const { name, phone, amount = 2 } = req.body;  // Changed default to 2 bob
+        const { name, phone, amount = 2 } = req.body;
         
         // Test M-Pesa service directly
         console.log('🔍 Testing M-Pesa service...');
@@ -408,12 +422,7 @@ app.post('/api/debug-registration', async (req, res) => {
             console.error('❌ M-Pesa Token Error:', tokenError.message);
         }
         
-        // Test AxtraxNG service
-        console.log('🔍 Testing AxtraxNG service...');
-        const axtraxService = require('./utils/axtraxIntegration');
-        console.log('🔍 AxtraxNG Enabled:', process.env.AXTRAX_ENABLED === 'true');
-        
-        // Try STK Push with 2 bob
+        // Test STK Push with 2 bob
         try {
             const response = await mpesaService.initiateSTKPush(
                 phone,
@@ -425,12 +434,10 @@ app.post('/api/debug-registration', async (req, res) => {
             
             res.json({
                 status: 'success',
-                message: 'Debug completed - M-Pesa and AxtraxNG tested',
+                message: 'Debug completed - M-Pesa tested',
                 data: {
                     mpesa: response,
-                    axtrax_enabled: process.env.AXTRAX_ENABLED === 'true',
-                    axtrax_base_url: process.env.AXTRAX_BASE_URL,
-                    callback_url_configured: !!mpesaService.callbackURL
+                    callback_url: mpesaService.callbackURL
                 }
             });
             
@@ -439,7 +446,6 @@ app.post('/api/debug-registration', async (req, res) => {
             res.json({
                 status: 'error',
                 message: 'M-Pesa failed: ' + stkError.message,
-                axtrax_enabled: process.env.AXTRAX_ENABLED === 'true',
                 callback_url: mpesaService.callbackURL
             });
         }
@@ -449,6 +455,72 @@ app.post('/api/debug-registration', async (req, res) => {
         res.status(500).json({
             status: 'error',
             message: 'Debug failed: ' + error.message
+        });
+    }
+});
+
+// Manual payment fix endpoint
+app.post('/api/fix-payment', async (req, res) => {
+    try {
+        const { membership_id, mpesa_receipt, amount = 2 } = req.body;
+        
+        if (!membership_id) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Membership ID is required'
+            });
+        }
+        
+        console.log(`🔧 Manual payment fix for: ${membership_id}`);
+        
+        const paymentData = {
+            mpesa_receipt: mpesa_receipt || 'MANUAL_' + Date.now(),
+            amount: amount,
+            payment_date: new Date()
+        };
+        
+        const user = await User.findByMembershipID(membership_id);
+        
+        if (!user) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'User not found'
+            });
+        }
+        
+        const isRenewal = user.status === 'active';
+        let result;
+        
+        if (isRenewal) {
+            result = await User.extendMembership(membership_id, paymentData);
+            console.log('🔄 Manual membership extension');
+        } else {
+            result = await User.updateAfterPayment(membership_id, paymentData);
+            console.log('🆕 Manual new membership activation');
+        }
+        
+        if (result) {
+            res.json({
+                status: 'success',
+                message: `Payment manually ${isRenewal ? 'extended' : 'activated'}`,
+                data: {
+                    membership_id: membership_id,
+                    status: 'active',
+                    updated: true
+                }
+            });
+        } else {
+            res.status(500).json({
+                status: 'error',
+                message: 'Failed to update payment'
+            });
+        }
+        
+    } catch (error) {
+        console.error('Manual fix error:', error);
+        res.status(500).json({
+            status: 'error',
+            message: error.message
         });
     }
 });
@@ -491,12 +563,12 @@ app.get('/api/health', async (req, res) => {
     }
 });
 
-// MEMBER REGISTRATION (UPDATED WITH AXTRAXNG)
+// MEMBER REGISTRATION
 app.post('/api/members/register', async (req, res) => {
     try {
-        console.log('Registration attempt:', req.body);
+        console.log('📝 Registration attempt:', req.body);
         
-        const { name, phone, amount = 2, membership_type = 'standard' } = req.body;  // Changed default to 2 bob
+        const { name, phone, amount = 2, membership_type = 'standard' } = req.body;
 
         // Validation
         if (!name || !phone) {
@@ -511,7 +583,7 @@ app.post('/api/members/register', async (req, res) => {
         if (!phoneRegex.test(phone)) {
             return res.status(400).json({
                 status: 'error',
-                message: 'Please enter a valid Kenyan phone number'
+                message: 'Please enter a valid Kenyan phone number (e.g., 254712345678)'
             });
         }
 
@@ -546,21 +618,20 @@ app.post('/api/members/register', async (req, res) => {
                 amount, 
                 membership_type 
             });
-            console.log('User created:', user.membership_id);
+            console.log('✅ User created:', user.membership_id);
         } catch (userError) {
-            // If database fails, create demo response
-            user = {
-                membership_id: 'GYM' + Date.now(),
-                id: Math.floor(Math.random() * 1000),
-                name: name,
-                phone: formattedPhone
-            };
-            console.log('Using demo user due to DB error:', userError.message);
+            console.error('❌ User creation failed:', userError.message);
+            return res.status(500).json({
+                status: 'error',
+                message: 'Failed to create user record. Please try again.'
+            });
         }
 
         // M-Pesa Integration
         try {
             const mpesaService = require('./config/mpesa');
+            console.log('📱 Initiating M-Pesa payment for:', formattedPhone);
+            
             const paymentResponse = await mpesaService.initiateSTKPush(
                 formattedPhone,
                 amount,
@@ -569,54 +640,43 @@ app.post('/api/members/register', async (req, res) => {
             );
 
             if (paymentResponse.ResponseCode === '0') {
-                // AXTRAXNG INTEGRATION - Sync user after successful payment initiation
-                try {
-                    const axtraxService = require('./utils/axtraxIntegration');
-                    console.log('🔄 Attempting AxtraxNG sync for user:', user.membership_id);
-                    
-                    const axtraxResult = await axtraxService.syncUserWithAxtrax({
-                        ...user,
-                        membership_start: new Date().toISOString(),
-                        membership_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-                    });
-                    
-                    console.log('✅ AxtraxNG sync result:', axtraxResult);
-                    
-                } catch (axtraxError) {
-                    console.log('⚠️ AxtraxNG sync failed (non-critical):', axtraxError.message);
-                    // Continue even if AxtraxNG fails
-                }
-
+                console.log('✅ M-Pesa payment initiated:', paymentResponse);
+                
                 res.json({
                     status: 'success',
-                    message: 'Payment request sent to your phone!',
+                    message: 'Payment request sent to your phone! Please complete the M-Pesa transaction.',
                     data: {
                         membership_id: user.membership_id,
                         checkout_request_id: paymentResponse.CheckoutRequestID,
-                        merchant_request_id: paymentResponse.MerchantRequestID,
-                        axtrax_sync: 'attempted' // Indicate AxtraxNG was attempted
+                        merchant_request_id: paymentResponse.MerchantRequestID
                     }
                 });
             } else {
-                throw new Error(paymentResponse.ResponseDescription || 'Payment failed');
+                console.error('❌ M-Pesa initiation failed:', paymentResponse);
+                throw new Error(paymentResponse.ResponseDescription || 'Payment initiation failed');
             }
         } catch (mpesaError) {
-            console.log('M-Pesa demo mode:', mpesaError.message);
-            // Demo response if M-Pesa fails
-            res.json({
-                status: 'success',
-                message: 'DEMO: Payment system ready - M-Pesa integration required',
-                data: {
-                    membership_id: user.membership_id,
-                    checkout_request_id: 'demo_' + Date.now(),
-                    axtrax_sync: 'demo_mode',
-                    note: 'Real M-Pesa integration needs configuration'
-                }
+            console.error('❌ M-Pesa error:', mpesaError.message);
+            
+            // Update user status to indicate payment initiation failed
+            try {
+                await db.execute(
+                    "UPDATE users SET status = 'cancelled' WHERE membership_id = ?",
+                    [user.membership_id]
+                );
+            } catch (updateError) {
+                console.log('Failed to update user status:', updateError.message);
+            }
+            
+            res.status(500).json({
+                status: 'error',
+                message: 'Failed to initiate payment: ' + mpesaError.message,
+                note: 'Please check your M-Pesa credentials and try again'
             });
         }
 
     } catch (error) {
-        console.error('Registration error:', error.message);
+        console.error('❌ Registration error:', error.message);
         res.status(500).json({
             status: 'error',
             message: error.message || 'Registration failed. Please try again.'
@@ -624,12 +684,12 @@ app.post('/api/members/register', async (req, res) => {
     }
 });
 
-// MEMBERSHIP RENEWAL (UPDATED WITH AXTRAXNG)
+// MEMBERSHIP RENEWAL
 app.post('/api/members/renew', async (req, res) => {
     try {
-        console.log('Renewal attempt:', req.body);
+        console.log('🔄 Renewal attempt:', req.body);
         
-        const { membership_id, phone, amount = 2 } = req.body;  // Changed default to 2 bob
+        const { membership_id, phone, amount = 2 } = req.body;
 
         if (!membership_id && !phone) {
             return res.status(400).json({
@@ -657,13 +717,15 @@ app.post('/api/members/renew', async (req, res) => {
         if (!user) {
             return res.status(404).json({
                 status: 'error',
-                message: 'Membership not found'
+                message: 'Membership not found. Please check your Membership ID or phone number.'
             });
         }
 
         // M-Pesa Integration
         try {
             const mpesaService = require('./config/mpesa');
+            console.log('📱 Initiating M-Pesa renewal for:', user.phone);
+            
             const paymentResponse = await mpesaService.initiateSTKPush(
                 user.phone,
                 amount,
@@ -672,54 +734,33 @@ app.post('/api/members/renew', async (req, res) => {
             );
 
             if (paymentResponse.ResponseCode === '0') {
-                // AXTRAXNG INTEGRATION - Update user access in AxtraxNG
-                try {
-                    const axtraxService = require('./utils/axtraxIntegration');
-                    console.log('🔄 Attempting AxtraxNG update for renewal:', user.membership_id);
-                    
-                    const newEndDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-                    const axtraxResult = await axtraxService.syncUserWithAxtrax({
-                        ...user,
-                        membership_end: newEndDate
-                    });
-                    
-                    console.log('✅ AxtraxNG renewal update result:', axtraxResult);
-                    
-                } catch (axtraxError) {
-                    console.log('⚠️ AxtraxNG renewal update failed (non-critical):', axtraxError.message);
-                    // Continue even if AxtraxNG fails
-                }
-
+                console.log('✅ M-Pesa renewal initiated:', paymentResponse);
+                
                 res.json({
                     status: 'success',
-                    message: 'Renewal payment request sent!',
+                    message: 'Renewal payment request sent to your phone!',
                     data: {
                         membership_id: user.membership_id,
-                        checkout_request_id: paymentResponse.CheckoutRequestID,
-                        axtrax_update: 'attempted'
+                        checkout_request_id: paymentResponse.CheckoutRequestID
                     }
                 });
             } else {
-                throw new Error(paymentResponse.ResponseDescription);
+                console.error('❌ M-Pesa renewal failed:', paymentResponse);
+                throw new Error(paymentResponse.ResponseDescription || 'Renewal failed');
             }
         } catch (mpesaError) {
-            console.log('M-Pesa renewal demo mode');
-            res.json({
-                status: 'success',
-                message: 'DEMO: Renewal system ready',
-                data: {
-                    membership_id: user.membership_id,
-                    checkout_request_id: 'renew_demo_' + Date.now(),
-                    axtrax_update: 'demo_mode'
-                }
+            console.error('❌ M-Pesa renewal error:', mpesaError.message);
+            res.status(500).json({
+                status: 'error',
+                message: 'Renewal failed: ' + mpesaError.message
             });
         }
 
     } catch (error) {
-        console.error('Renewal error:', error.message);
+        console.error('❌ Renewal error:', error.message);
         res.status(500).json({
             status: 'error',
-            message: error.message || 'Renewal failed'
+            message: error.message || 'Renewal failed. Please try again.'
         });
     }
 });
@@ -728,7 +769,7 @@ app.post('/api/members/renew', async (req, res) => {
 app.get('/api/members/status', async (req, res) => {
     try {
         const { membership_id, phone } = req.query;
-        console.log('Status check:', { membership_id, phone });
+        console.log('🔍 Status check:', { membership_id, phone });
 
         if (!membership_id && !phone) {
             return res.status(400).json({
@@ -746,7 +787,7 @@ app.get('/api/members/status', async (req, res) => {
                 user = await User.findByPhone(phone);
             }
         } catch (dbError) {
-            console.log('Database status check failed');
+            console.log('Database status check failed:', dbError.message);
             return res.status(503).json({
                 status: 'error',
                 message: 'Database temporarily unavailable'
@@ -785,7 +826,7 @@ app.get('/api/members/status', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Status check error:', error.message);
+        console.error('❌ Status check error:', error.message);
         res.status(500).json({
             status: 'error',
             message: 'Failed to check status'
@@ -796,7 +837,7 @@ app.get('/api/members/status', async (req, res) => {
 // CHECK MPESA PAYMENT STATUS
 app.post('/api/check-mpesa', async (req, res) => {
     try {
-        console.log('M-Pesa status check:', req.body);
+        console.log('🔍 M-Pesa status check:', req.body);
         
         const { checkout_request_id } = req.body;
 
@@ -816,7 +857,7 @@ app.post('/api/check-mpesa', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('M-Pesa status check error:', error.message);
+        console.error('❌ M-Pesa status check error:', error.message);
         res.status(500).json({
             status: 'error',
             message: 'Failed to check payment status: ' + error.message
@@ -855,12 +896,14 @@ app.get('/api/admin/stats', async (req, res) => {
     try {
         const [totalMembers] = await db.query('SELECT COUNT(*) as count FROM users');
         const [activeMembers] = await db.query('SELECT COUNT(*) as count FROM users WHERE status = "active" AND membership_end > NOW()');
+        const [pendingPayments] = await db.query('SELECT COUNT(*) as count FROM users WHERE status = "pending_payment"');
         
         res.json({
             status: 'success',
             data: {
                 total_members: totalMembers[0].count,
                 active_members: activeMembers[0].count,
+                pending_payments: pendingPayments[0].count,
                 axtrax_enabled: process.env.AXTRAX_ENABLED === 'true',
                 services: {
                     database: 'connected',
@@ -876,6 +919,7 @@ app.get('/api/admin/stats', async (req, res) => {
             data: {
                 total_members: 0,
                 active_members: 0,
+                pending_payments: 0,
                 axtrax_enabled: process.env.AXTRAX_ENABLED === 'true',
                 note: 'Database offline'
             }
@@ -899,12 +943,22 @@ app.get('/success', (req, res) => {
     res.sendFile(path.join(__dirname, '../success.html'));
 });
 
+// New test pages
+app.get('/test-callback', (req, res) => {
+    res.sendFile(path.join(__dirname, '../test-callback.html'));
+});
+
+app.get('/api-test', (req, res) => {
+    res.sendFile(path.join(__dirname, '../api-test.html'));
+});
+
 // =====================
 // ERROR HANDLING
 // =====================
 
 // 404 for API routes
 app.use('/api/*', (req, res) => {
+    console.log(`❌ 404: API endpoint not found: ${req.originalUrl}`);
     res.status(404).json({
         status: 'error',
         message: 'API endpoint not found: ' + req.originalUrl,
@@ -916,14 +970,15 @@ app.use('/api/*', (req, res) => {
             'GET /api/axtrax/mock-users',
             'DELETE /api/axtrax/clear-mock',
             'POST /api/debug-registration',
+            'POST /api/fix-payment',
             'POST /api/members/register', 
             'POST /api/members/renew',
             'GET /api/members/status',
             'POST /api/check-mpesa',
             'GET /api/members/active',
-            'GET /api/payments/mpesa-callback',  // ✅ ADDED: GET callback
-            'POST /api/payments/mpesa-callback', // ✅ ADDED: POST callback
-            'POST /api/payments/test-callback',  // ✅ ADDED: Test callback
+            'GET /api/payments/mpesa-callback',
+            'POST /api/payments/mpesa-callback',
+            'POST /api/payments/test-callback',
             'GET /api/admin/stats'
         ]
     });
@@ -936,10 +991,11 @@ app.get('*', (req, res) => {
 
 // Global error handler
 app.use((error, req, res, next) => {
-    console.error('Global error:', error.message);
+    console.error('🔥 Global error:', error.message);
     res.status(500).json({
         status: 'error',
-        message: 'Internal server error'
+        message: 'Internal server error',
+        error: error.message
     });
 });
 
@@ -954,7 +1010,7 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`📍 Port: ${PORT}`);
     console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`📍 Database: ${process.env.DB_NAME || 'Not configured'}`);
-    console.log(`📍 M-Pesa: ${process.env.MPESA_ENVIRONMENT || 'Not set'}`);
+    console.log(`📍 M-Pesa Mode: ${process.env.MPESA_ENVIRONMENT || 'Not set'}`);
     console.log(`📍 AxtraxNG: ${process.env.AXTRAX_ENABLED === 'true' ? 'ENABLED' : 'DISABLED'}`);
     console.log(`📍 Callback URL: ${process.env.MPESA_CALLBACK_URL || 'Not set'}`);
     console.log('='.repeat(60));
@@ -965,18 +1021,22 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log('   • GET  /api/axtrax/mock-users');
     console.log('   • DELETE /api/axtrax/clear-mock');
     console.log('   • POST /api/debug-registration');
+    console.log('   • POST /api/fix-payment');
     console.log('   • POST /api/members/register');
     console.log('   • POST /api/members/renew'); 
     console.log('   • GET  /api/members/status');
     console.log('   • POST /api/check-mpesa');
     console.log('   • GET  /api/members/active');
-    console.log('   • GET  /api/payments/mpesa-callback  ← M-Pesa validation ✅');  // ✅
-    console.log('   • POST /api/payments/mpesa-callback  ← M-Pesa payments ✅');    // ✅
-    console.log('   • POST /api/payments/test-callback  ← Test callback ✅');      // ✅
+    console.log('   • GET  /api/payments/mpesa-callback  ← M-Pesa validation');
+    console.log('   • POST /api/payments/mpesa-callback  ← M-Pesa payments');
+    console.log('   • POST /api/payments/test-callback  ← Test callback');
     console.log('   • GET  /api/admin/stats');
     console.log('='.repeat(60));
-    console.log('✅ Server ready! M-Pesa callbacks should work now.');
-    console.log('✅ Test callback validation: https://msingi.co.ke/api/payments/mpesa-callback');
+    console.log('🌐 Test Pages:');
+    console.log('   • /test-callback  ← Callback tester');
+    console.log('   • /api-test       ← API tester');
+    console.log('='.repeat(60));
+    console.log('✅ Server ready! Test your system now.');
     console.log('='.repeat(60));
 });
 
