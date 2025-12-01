@@ -142,8 +142,9 @@ registrationForm.addEventListener('submit', async (e) => {
         return;
     }
     
-    if (data.amount < 500 || data.amount > 50000) {
-        alert('Please enter a valid amount between KSh 500 and KSh 50,000');
+    // Changed from 500-50000 to 2-100 for testing
+    if (data.amount < 2 || data.amount > 100) {
+        alert('Please enter a valid amount between KSh 2 and KSh 100');
         return;
     }
     
@@ -179,8 +180,9 @@ renewalForm.addEventListener('submit', async (e) => {
         return;
     }
     
-    if (data.amount < 500 || data.amount > 50000) {
-        alert('Please enter a valid amount between KSh 500 and KSh 50,000');
+    // Changed from 500-50000 to 2-100 for testing
+    if (data.amount < 2 || data.amount > 100) {
+        alert('Please enter a valid amount between KSh 2 and KSh 100');
         return;
     }
     
@@ -239,7 +241,7 @@ async function submitRegistration(data) {
             
             // Reset form
             registrationForm.reset();
-            document.getElementById('amount').value = '2000';
+            document.getElementById('amount').value = '2'; // Changed from 2000 to 2
         } else {
             throw new Error(result.message);
         }
@@ -293,7 +295,7 @@ async function submitRenewal(data) {
             
             // Reset form
             renewalForm.reset();
-            document.getElementById('renewalAmount').value = '2000';
+            document.getElementById('renewalAmount').value = '2'; // Changed from 2000 to 2
         } else {
             throw new Error(result.message);
         }
@@ -396,18 +398,18 @@ window.addEventListener('click', (e) => {
     }
 });
 
-// Membership type change handler
+// Membership type change handler - CHANGED TO 2, 3, 5 BOB
 document.getElementById('membershipType')?.addEventListener('change', function() {
     const amountInput = document.getElementById('amount');
     switch (this.value) {
         case 'standard':
-            amountInput.value = '2000';
+            amountInput.value = '2';  // Changed from 2000 to 2 bob
             break;
         case 'premium':
-            amountInput.value = '3500';
+            amountInput.value = '3';  // Changed from 3500 to 3 bob
             break;
         case 'vip':
-            amountInput.value = '5000';
+            amountInput.value = '5';  // Changed from 5000 to 5 bob
             break;
     }
 });
