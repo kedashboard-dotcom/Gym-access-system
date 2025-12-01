@@ -4,7 +4,8 @@ header('Content-Type: text/plain');
 echo "🔧 Testing Msingi Gym Configuration\n\n";
 
 // Read .env file
-$envFile = __DIR__ . '/backend/.env';
+
+$envFile = __DIR__ . '/../../.env';
 if (!file_exists($envFile)) {
     die("❌ .env file not found at: $envFile\n");
 }
