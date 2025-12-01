@@ -980,9 +980,6 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log('='.repeat(60));
 });
 
-// Add this line with your other route imports
-app.use('/backend', require('./register-mpesa-urls'));
-
 // Graceful shutdown
 process.on('SIGTERM', () => {
     console.log('Shutting down gracefully...');
