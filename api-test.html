@@ -3,811 +3,380 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🔧 Msingi Gym - API Diagnostic Test</title>
+    <title>API Tester - Msingi Gym</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #333;
-            line-height: 1.6;
-            min-height: 100vh;
-            padding: 20px;
-        }
-        
-        .container {
-            max-width: 1200px;
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
             margin: 0 auto;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            overflow: hidden;
+            padding: 20px;
+            background: #f5f5f5;
         }
-        
-        .header {
-            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
-            color: white;
+        .container {
+            background: white;
             padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
             text-align: center;
-        }
-        
-        .header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-        }
-        
-        .header p {
-            font-size: 1.1rem;
-            opacity: 0.9;
-        }
-        
-        .controls {
-            background: #f8f9fa;
-            padding: 20px;
-            border-bottom: 1px solid #e9ecef;
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-        
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .btn-primary {
-            background: #007bff;
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            background: #0056b3;
-            transform: translateY(-2px);
-        }
-        
-        .btn-success {
-            background: #28a745;
-            color: white;
-        }
-        
-        .btn-success:hover {
-            background: #1e7e34;
-            transform: translateY(-2px);
-        }
-        
-        .btn-danger {
-            background: #dc3545;
-            color: white;
-        }
-        
-        .btn-danger:hover {
-            background: #c82333;
-            transform: translateY(-2px);
-        }
-        
-        .btn-warning {
-            background: #ffc107;
-            color: #212529;
-        }
-        
-        .btn-warning:hover {
-            background: #e0a800;
-            transform: translateY(-2px);
-        }
-        
-        .results {
-            padding: 20px;
-        }
-        
-        .test-section {
             margin-bottom: 30px;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            overflow: hidden;
         }
-        
-        .test-header {
-            background: #f8f9fa;
-            padding: 15px 20px;
-            border-bottom: 1px solid #e9ecef;
+        .tab {
             display: flex;
-            justify-content: between;
-            align-items: center;
+            border-bottom: 2px solid #ddd;
+            margin-bottom: 20px;
         }
-        
-        .test-header h3 {
-            margin: 0;
-            color: #2c3e50;
+        .tab button {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
         }
-        
-        .test-content {
-            padding: 20px;
-        }
-        
-        .test-result {
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 6px;
-            border-left: 4px solid #6c757d;
-        }
-        
-        .test-result.success {
-            background: #d4edda;
-            border-left-color: #28a745;
-        }
-        
-        .test-result.error {
-            background: #f8d7da;
-            border-left-color: #dc3545;
-        }
-        
-        .test-result.warning {
-            background: #fff3cd;
-            border-left-color: #ffc107;
-        }
-        
-        .test-result.info {
-            background: #d1ecf1;
-            border-left-color: #17a2b8;
-        }
-        
-        .test-result.loading {
-            background: #e2e3e5;
-            border-left-color: #6c757d;
-        }
-        
-        .status-indicator {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 8px;
-        }
-        
-        .status-success { background: #28a745; }
-        .status-error { background: #dc3545; }
-        .status-warning { background: #ffc107; }
-        .status-loading { background: #6c757d; animation: pulse 1.5s infinite; }
-        
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
-        
-        pre {
-            background: #2c3e50;
-            color: #ecf0f1;
-            padding: 15px;
-            border-radius: 6px;
-            overflow-x: auto;
-            margin: 10px 0;
-            font-family: 'Courier New', monospace;
-            font-size: 0.9rem;
-        }
-        
-        .summary {
-            background: #e3f2fd;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 20px 0;
-        }
-        
-        .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
-        }
-        
-        .summary-item {
-            text-align: center;
-            padding: 15px;
-            background: white;
-            border-radius: 6px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        
-        .summary-number {
-            font-size: 2rem;
+        .tab button.active {
+            border-bottom: 3px solid #007bff;
+            color: #007bff;
             font-weight: bold;
-            margin-bottom: 5px;
         }
-        
-        .success-count { color: #28a745; }
-        .error-count { color: #dc3545; }
-        .warning-count { color: #ffc107; }
-        
-        .hidden {
+        .test-section {
             display: none;
         }
-        
-        .progress-bar {
+        .test-section.active {
+            display: block;
+        }
+        .test-box {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        input, textarea {
             width: 100%;
-            height: 6px;
-            background: #e9ecef;
-            border-radius: 3px;
-            overflow: hidden;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        button.test-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
             margin: 10px 0;
         }
-        
-        .progress-fill {
-            height: 100%;
-            background: #007bff;
-            transition: width 0.3s ease;
+        button.test-btn:hover {
+            background: #0056b3;
         }
-        
-        @media (max-width: 768px) {
-            .controls {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            
-            .btn {
-                justify-content: center;
-            }
-            
-            .header h1 {
-                font-size: 2rem;
-            }
+        .result {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
         }
+        .success { color: green; }
+        .error { color: red; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>🔧 API Diagnostic Center</h1>
-            <p>Msingi Gym System - Complete Server Diagnostics</p>
+        <h1>🔧 Msingi Gym API Tester</h1>
+        
+        <div class="tab">
+            <button class="tab-btn active" onclick="showTab('health')">Health</button>
+            <button class="tab-btn" onclick="showTab('register')">Register</button>
+            <button class="tab-btn" onclick="showTab('renew')">Renew</button>
+            <button class="tab-btn" onclick="showTab('status')">Status</button>
+            <button class="tab-btn" onclick="showTab('callback')">Callback</button>
+            <button class="tab-btn" onclick="showTab('admin')">Admin</button>
         </div>
         
-        <div class="controls">
-            <button class="btn btn-primary" onclick="runQuickTest()">
-                <span>⚡</span> Quick Test
-            </button>
-            <button class="btn btn-success" onclick="runFullTest()">
-                <span>🔍</span> Full Diagnostic
-            </button>
-            <button class="btn btn-warning" onclick="testRegistration()">
-                <span>📝</span> Test Registration
-            </button>
-            <button class="btn btn-danger" onclick="clearResults()">
-                <span>🗑️</span> Clear Results
-            </button>
-            <button class="btn" onclick="checkNodeJSStatus()" style="background: #6f42c1; color: white;">
-                <span>🚀</span> Check Node.js Status
-            </button>
-        </div>
-        
-        <div class="progress-bar hidden" id="progressBar">
-            <div class="progress-fill" id="progressFill"></div>
-        </div>
-        
-        <div class="results" id="results">
-            <div class="summary" id="summary">
-                <h3>📊 Test Summary</h3>
-                <p>Run tests to see diagnostic results</p>
-                <div class="summary-grid">
-                    <div class="summary-item">
-                        <div class="summary-number success-count">0</div>
-                        <div>Successful</div>
-                    </div>
-                    <div class="summary-item">
-                        <div class="summary-number warning-count">0</div>
-                        <div>Warnings</div>
-                    </div>
-                    <div class="summary-item">
-                        <div class="summary-number error-count">0</div>
-                        <div>Errors</div>
-                    </div>
-                    <div class="summary-item">
-                        <div class="summary-number">0%</div>
-                        <div>Success Rate</div>
-                    </div>
-                </div>
+        <!-- Health Check Tab -->
+        <div id="health" class="test-section active">
+            <div class="test-box">
+                <h3>Health Check</h3>
+                <p>Check if API is running</p>
+                <button class="test-btn" onclick="testHealth()">Test Health</button>
+                <div id="healthResult" class="result"></div>
             </div>
             
-            <div id="testResults">
-                <!-- Test results will be inserted here -->
+            <div class="test-box">
+                <h3>System Info</h3>
+                <button class="test-btn" onclick="getSystemInfo()">Get System Info</button>
+                <div id="systemResult" class="result"></div>
+            </div>
+        </div>
+        
+        <!-- Registration Tab -->
+        <div id="register" class="test-section">
+            <div class="test-box">
+                <h3>New Member Registration</h3>
+                <input type="text" id="regName" placeholder="Full Name" value="Test User">
+                <input type="text" id="regPhone" placeholder="Phone (254712345678)" value="254712345678">
+                <select id="regPlan">
+                    <option value="standard">Standard (2 bob)</option>
+                    <option value="premium">Premium (3 bob)</option>
+                    <option value="vip">VIP (5 bob)</option>
+                </select>
+                <input type="number" id="regAmount" placeholder="Amount" value="2">
+                <button class="test-btn" onclick="testRegistration()">Test Registration</button>
+                <div id="regResult" class="result"></div>
+            </div>
+        </div>
+        
+        <!-- Renewal Tab -->
+        <div id="renew" class="test-section">
+            <div class="test-box">
+                <h3>Membership Renewal</h3>
+                <input type="text" id="renewId" placeholder="Membership ID" value="GYM001A1B2C">
+                <input type="number" id="renewAmount" placeholder="Amount" value="2">
+                <button class="test-btn" onclick="testRenewal()">Test Renewal</button>
+                <div id="renewResult" class="result"></div>
+            </div>
+        </div>
+        
+        <!-- Status Tab -->
+        <div id="status" class="test-section">
+            <div class="test-box">
+                <h3>Check Membership Status</h3>
+                <input type="text" id="statusInput" placeholder="Membership ID or Phone" value="GYM001A1B2C">
+                <button class="test-btn" onclick="checkStatus()">Check Status</button>
+                <div id="statusResult" class="result"></div>
+            </div>
+            
+            <div class="test-box">
+                <h3>Active Members</h3>
+                <button class="test-btn" onclick="getActiveMembers()">Get Active Members</button>
+                <div id="activeResult" class="result"></div>
+            </div>
+        </div>
+        
+        <!-- Callback Tab -->
+        <div id="callback" class="test-section">
+            <div class="test-box">
+                <h3>Test M-Pesa Callback</h3>
+                <textarea id="callbackData" rows="10">{
+  "Body": {
+    "stkCallback": {
+      "MerchantRequestID": "test-12345",
+      "CheckoutRequestID": "test-checkout-12345",
+      "ResultCode": 0,
+      "ResultDesc": "Success",
+      "CallbackMetadata": {
+        "Item": [
+          { "Name": "Amount", "Value": 2 },
+          { "Name": "MpesaReceiptNumber", "Value": "TEST123456" },
+          { "Name": "TransactionDate", "Value": "20240115102036" },
+          { "Name": "PhoneNumber", "Value": "254712345678" }
+        ]
+      }
+    }
+  }
+}</textarea>
+                <button class="test-btn" onclick="testCallback()">Test Callback</button>
+                <div id="callbackResult" class="result"></div>
+            </div>
+        </div>
+        
+        <!-- Admin Tab -->
+        <div id="admin" class="test-section">
+            <div class="test-box">
+                <h3>Admin Statistics</h3>
+                <button class="test-btn" onclick="getStats()">Get Stats</button>
+                <div id="statsResult" class="result"></div>
             </div>
         </div>
     </div>
 
     <script>
-        // Configuration
         const API_BASE_URL = window.location.origin + '/api';
-        let testCount = 0;
-        let successCount = 0;
-        let warningCount = 0;
-        let errorCount = 0;
-
-        // Test endpoints configuration
-        const testEndpoints = [
-            {
-                name: 'API Health Check',
-                url: '/api/health',
-                method: 'GET',
-                description: 'Basic server health check'
-            },
-            {
-                name: 'Simple Test Endpoint',
-                url: '/api/test',
-                method: 'GET',
-                description: 'Simple test endpoint response'
-            },
-            {
-                name: 'Membership Status Check',
-                url: '/api/members/status?membership_id=GYM001A1B2C',
-                method: 'GET',
-                description: 'Check membership status functionality'
-            },
-            {
-                name: 'Registration Endpoint',
-                url: '/api/members/register',
-                method: 'POST',
-                description: 'Member registration endpoint',
-                data: {
-                    name: 'Test User',
-                    phone: '254712345678',
-                    amount: 2000,
-                    membership_type: 'standard'
-                }
-            },
-            {
-                name: 'Renewal Endpoint',
-                url: '/api/members/renew',
-                method: 'POST',
-                description: 'Membership renewal endpoint',
-                data: {
-                    membership_id: 'GYM001A1B2C',
-                    amount: 2000
-                }
-            }
-        ];
-
-        // Utility functions
-        function updateProgress(percentage) {
-            const progressBar = document.getElementById('progressBar');
-            const progressFill = document.getElementById('progressFill');
+        
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.test-section').forEach(section => {
+                section.classList.remove('active');
+            });
             
-            progressBar.classList.remove('hidden');
-            progressFill.style.width = percentage + '%';
+            // Remove active class from all buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
             
-            if (percentage >= 100) {
-                setTimeout(() => progressBar.classList.add('hidden'), 1000);
-            }
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            
+            // Activate button
+            event.target.classList.add('active');
         }
-
-        function updateSummary() {
-            const totalTests = testCount;
-            const successRate = totalTests > 0 ? Math.round((successCount / totalTests) * 100) : 0;
-            
-            document.querySelector('.success-count').textContent = successCount;
-            document.querySelector('.warning-count').textContent = warningCount;
-            document.querySelector('.error-count').textContent = errorCount;
-            document.querySelector('.summary-grid .summary-item:last-child .summary-number').textContent = successRate + '%';
-            
-            // Update summary text
-            const summary = document.getElementById('summary');
-            if (totalTests > 0) {
-                summary.innerHTML = `
-                    <h3>📊 Test Summary</h3>
-                    <p>Completed ${totalTests} tests with ${successRate}% success rate</p>
-                    <div class="summary-grid">
-                        <div class="summary-item">
-                            <div class="summary-number success-count">${successCount}</div>
-                            <div>Successful</div>
-                        </div>
-                        <div class="summary-item">
-                            <div class="summary-number warning-count">${warningCount}</div>
-                            <div>Warnings</div>
-                        </div>
-                        <div class="summary-item">
-                            <div class="summary-number error-count">${errorCount}</div>
-                            <div>Errors</div>
-                        </div>
-                        <div class="summary-item">
-                            <div class="summary-number">${successRate}%</div>
-                            <div>Success Rate</div>
-                        </div>
-                    </div>
-                `;
-            }
-        }
-
-        function createTestResult(name, status, message, details = null) {
-            testCount++;
-            
-            const statusClass = status.toLowerCase();
-            const statusIndicator = status.toLowerCase();
-            
-            if (status === 'SUCCESS') successCount++;
-            else if (status === 'WARNING') warningCount++;
-            else if (status === 'ERROR') errorCount++;
-            
-            const resultDiv = document.createElement('div');
-            resultDiv.className = `test-result ${statusClass}`;
-            resultDiv.innerHTML = `
-                <div style="display: flex; align-items: center; margin-bottom: 8px;">
-                    <span class="status-indicator status-${statusIndicator}"></span>
-                    <strong>${name}</strong>
-                    <span style="margin-left: auto; font-size: 0.9em; opacity: 0.8;">${status}</span>
-                </div>
-                <div>${message}</div>
-                ${details ? `<pre>${details}</pre>` : ''}
-            `;
-            
-            return resultDiv;
-        }
-
-        // Test functions
-        async function testEndpoint(endpoint) {
-            const testSection = document.createElement('div');
-            testSection.className = 'test-section';
-            testSection.innerHTML = `
-                <div class="test-header">
-                    <h3>${endpoint.name}</h3>
-                    <span class="status-indicator status-loading"></span>
-                </div>
-                <div class="test-content" id="content-${endpoint.name.replace(/\s+/g, '-')}">
-                    <div class="test-result loading">
-                        Testing ${endpoint.method} ${endpoint.url}...
-                    </div>
-                </div>
-            `;
-            
-            document.getElementById('testResults').appendChild(testSection);
-            const contentDiv = testSection.querySelector('.test-content');
+        
+        async function testHealth() {
+            const resultDiv = document.getElementById('healthResult');
+            resultDiv.innerHTML = 'Testing...';
             
             try {
-                const options = {
-                    method: endpoint.method,
-                    headers: {}
-                };
-                
-                if (endpoint.data) {
-                    options.headers['Content-Type'] = 'application/json';
-                    options.body = JSON.stringify(endpoint.data);
-                }
-                
-                const startTime = Date.now();
-                const response = await fetch(endpoint.url, options);
-                const endTime = Date.now();
-                const responseTime = endTime - startTime;
-                
-                const contentType = response.headers.get('content-type') || '';
-                const rawText = await response.text();
-                
-                let parsedData = null;
-                let parseError = null;
-                
-                // Try to parse as JSON
-                try {
-                    parsedData = rawText ? JSON.parse(rawText) : null;
-                } catch (e) {
-                    parseError = e.message;
-                }
-                
-                // Analyze the response
-                let status = 'UNKNOWN';
-                let message = '';
-                let details = '';
-                
-                if (response.status >= 500) {
-                    status = 'ERROR';
-                    message = `Server error (${response.status})`;
-                } else if (response.status >= 400) {
-                    status = 'WARNING';
-                    message = `Client error (${response.status})`;
-                } else if (response.status >= 200 && response.status < 300) {
-                    status = 'SUCCESS';
-                    message = `Success (${response.status}) - ${responseTime}ms`;
-                }
-                
-                // Check content type
-                if (!contentType.includes('application/json') && !contentType.includes('text/plain')) {
-                    status = 'WARNING';
-                    message += ' - Unexpected Content-Type';
-                }
-                
-                if (parseError) {
-                    status = 'ERROR';
-                    message += ' - Invalid JSON response';
-                    details = `JSON Parse Error: ${parseError}\n\nRaw Response (first 500 chars):\n${rawText.substring(0, 500)}`;
-                } else if (rawText.includes('<!DOCTYPE') || rawText.includes('<html')) {
-                    status = 'ERROR';
-                    message += ' - Received HTML instead of API response';
-                    details = `HTML Response (first 500 chars):\n${rawText.substring(0, 500)}`;
-                } else if (parsedData) {
-                    details = `JSON Response:\n${JSON.stringify(parsedData, null, 2)}`;
-                } else {
-                    details = `Raw Response:\n${rawText.substring(0, 1000)}`;
-                }
-                
-                // Add response details
-                details += `\n\nResponse Headers:\n${Array.from(response.headers.entries()).map(([key, value]) => `${key}: ${value}`).join('\n')}`;
-                
-                contentDiv.innerHTML = '';
-                contentDiv.appendChild(createTestResult(
-                    `${endpoint.method} ${endpoint.url}`,
-                    status,
-                    `${message} - ${endpoint.description}`,
-                    details
-                ));
-                
+                const response = await fetch(`${API_BASE_URL}/health`);
+                const data = await response.json();
+                resultDiv.innerHTML = JSON.stringify(data, null, 2);
+                resultDiv.className = 'result success';
             } catch (error) {
-                contentDiv.innerHTML = '';
-                contentDiv.appendChild(createTestResult(
-                    `${endpoint.method} ${endpoint.url}`,
-                    'ERROR',
-                    `Network error: ${error.message}`,
-                    `Error Details:\n${error.stack}`
-                ));
+                resultDiv.innerHTML = `Error: ${error.message}`;
+                resultDiv.className = 'result error';
             }
-            
-            updateSummary();
         }
-
-        async function testServerConnectivity() {
-            const section = document.createElement('div');
-            section.className = 'test-section';
-            section.innerHTML = `
-                <div class="test-header">
-                    <h3>Server Connectivity</h3>
-                </div>
-                <div class="test-content" id="connectivity-content"></div>
-            `;
+        
+        async function getSystemInfo() {
+            const resultDiv = document.getElementById('systemResult');
+            resultDiv.innerHTML = 'Loading...';
             
-            document.getElementById('testResults').appendChild(section);
-            const contentDiv = section.querySelector('.test-content');
-            
-            // Test basic connectivity
             try {
-                const response = await fetch('/api/health', { method: 'GET' });
-                const rawText = await response.text();
+                // Test multiple endpoints
+                const [healthRes, testRes] = await Promise.all([
+                    fetch(`${API_BASE_URL}/health`),
+                    fetch(`${API_BASE_URL}/test-axtrax`)
+                ]);
                 
-                if (rawText.includes('<!DOCTYPE')) {
-                    contentDiv.appendChild(createTestResult(
-                        'Basic Connectivity',
-                        'ERROR',
-                        'Server returning HTML instead of API response',
-                        'This usually means Node.js server is not running or .htaccess is not properly configured'
-                    ));
-                } else {
-                    contentDiv.appendChild(createTestResult(
-                        'Basic Connectivity',
-                        'SUCCESS',
-                        'Server is responding to API requests',
-                        `Response: ${rawText.substring(0, 200)}`
-                    ));
-                }
+                const healthData = await healthRes.json();
+                const testData = await testRes.json();
+                
+                resultDiv.innerHTML = `Health: ${healthData.message}\n\n` +
+                                    `Axtrax: ${testData.message}\n\n` +
+                                    `Full Response:\n${JSON.stringify({health: healthData, axtrax: testData}, null, 2)}`;
+                resultDiv.className = 'result success';
             } catch (error) {
-                contentDiv.appendChild(createTestResult(
-                    'Basic Connectivity',
-                    'ERROR',
-                    'Cannot connect to server',
-                    `Error: ${error.message}`
-                ));
+                resultDiv.innerHTML = `Error: ${error.message}`;
+                resultDiv.className = 'result error';
             }
-            
-            updateSummary();
         }
-
-        // Main test functions
-        async function runQuickTest() {
-            clearResults();
-            updateProgress(0);
-            
-            await testServerConnectivity();
-            updateProgress(50);
-            
-            // Test only health endpoint for quick test
-            await testEndpoint(testEndpoints[0]);
-            updateProgress(100);
-        }
-
-        async function runFullTest() {
-            clearResults();
-            updateProgress(0);
-            
-            await testServerConnectivity();
-            updateProgress(20);
-            
-            for (let i = 0; i < testEndpoints.length; i++) {
-                await testEndpoint(testEndpoints[i]);
-                updateProgress(20 + ((i + 1) / testEndpoints.length) * 80);
-            }
-            
-            updateProgress(100);
-        }
-
+        
         async function testRegistration() {
-            clearResults();
+            const resultDiv = document.getElementById('regResult');
+            resultDiv.innerHTML = 'Processing...';
             
-            const testData = {
-                name: 'John Doe',
-                phone: '254712345678',
-                amount: 2000,
-                membership_type: 'standard'
+            const data = {
+                name: document.getElementById('regName').value,
+                phone: document.getElementById('regPhone').value,
+                amount: parseInt(document.getElementById('regAmount').value),
+                membership_type: document.getElementById('regPlan').value
             };
             
-            const section = document.createElement('div');
-            section.className = 'test-section';
-            section.innerHTML = `
-                <div class="test-header">
-                    <h3>Registration Flow Test</h3>
-                </div>
-                <div class="test-content" id="registration-content"></div>
-            `;
-            
-            document.getElementById('testResults').appendChild(section);
-            const contentDiv = section.querySelector('.test-content');
-            
             try {
-                contentDiv.appendChild(createTestResult(
-                    'Sending Registration Data',
-                    'INFO',
-                    `Sending: ${JSON.stringify(testData, null, 2)}`
-                ));
-                
-                const response = await fetch('/api/members/register', {
+                const response = await fetch(`${API_BASE_URL}/members/register`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(testData)
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
                 });
                 
-                const rawText = await response.text();
-                
-                if (rawText.includes('<!DOCTYPE')) {
-                    contentDiv.appendChild(createTestResult(
-                        'Registration Response',
-                        'ERROR',
-                        'Received HTML page instead of JSON',
-                        'Node.js server is not processing the request'
-                    ));
-                } else {
-                    try {
-                        const result = JSON.parse(rawText);
-                        contentDiv.appendChild(createTestResult(
-                            'Registration Response',
-                            'SUCCESS',
-                            'Registration endpoint is working',
-                            `Response: ${JSON.stringify(result, null, 2)}`
-                        ));
-                    } catch (e) {
-                        contentDiv.appendChild(createTestResult(
-                            'Registration Response',
-                            'ERROR',
-                            'Invalid JSON response',
-                            `Raw response: ${rawText.substring(0, 500)}`
-                        ));
-                    }
-                }
-                
+                const result = await response.json();
+                resultDiv.innerHTML = JSON.stringify(result, null, 2);
+                resultDiv.className = result.status === 'success' ? 'result success' : 'result error';
             } catch (error) {
-                contentDiv.appendChild(createTestResult(
-                    'Registration Test',
-                    'ERROR',
-                    'Network error during registration',
-                    `Error: ${error.message}`
-                ));
+                resultDiv.innerHTML = `Error: ${error.message}`;
+                resultDiv.className = 'result error';
             }
-            
-            updateSummary();
         }
-
-        async function checkNodeJSStatus() {
-            clearResults();
+        
+        async function testRenewal() {
+            const resultDiv = document.getElementById('renewResult');
+            resultDiv.innerHTML = 'Processing...';
             
-            const section = document.createElement('div');
-            section.className = 'test-section';
-            section.innerHTML = `
-                <div class="test-header">
-                    <h3>Node.js Server Status</h3>
-                </div>
-                <div class="test-content" id="nodejs-content"></div>
-            `;
+            const data = {
+                membership_id: document.getElementById('renewId').value,
+                amount: parseInt(document.getElementById('renewAmount').value)
+            };
             
-            document.getElementById('testResults').appendChild(section);
-            const contentDiv = section.querySelector('.test-content');
-            
-            // Test various indicators
-            const tests = [
-                { name: 'API Health Endpoint', url: '/api/health' },
-                { name: 'Server Response Time', url: '/api/health' },
-                { name: 'JSON Parsing', url: '/api/health' },
-                { name: 'Error Handling', url: '/api/nonexistent' }
-            ];
-            
-            for (const test of tests) {
-                try {
-                    const start = Date.now();
-                    const response = await fetch(test.url);
-                    const time = Date.now() - start;
-                    const text = await response.text();
-                    
-                    if (test.name === 'Server Response Time') {
-                        const status = time < 1000 ? 'SUCCESS' : 'WARNING';
-                        contentDiv.appendChild(createTestResult(
-                            test.name,
-                            status,
-                            `Response time: ${time}ms ${time > 1000 ? '(slow)' : ''}`
-                        ));
-                    } else if (test.name === 'Error Handling') {
-                        if (response.status === 404) {
-                            contentDiv.appendChild(createTestResult(
-                                test.name,
-                                'SUCCESS',
-                                'Proper 404 error handling'
-                            ));
-                        } else {
-                            contentDiv.appendChild(createTestResult(
-                                test.name,
-                                'WARNING',
-                                `Unexpected status: ${response.status}`
-                            ));
-                        }
-                    } else {
-                        if (text && !text.includes('<!DOCTYPE')) {
-                            contentDiv.appendChild(createTestResult(
-                                test.name,
-                                'SUCCESS',
-                                'Endpoint responding correctly'
-                            ));
-                        } else {
-                            contentDiv.appendChild(createTestResult(
-                                test.name,
-                                'ERROR',
-                                'Endpoint not functioning properly'
-                            ));
-                        }
-                    }
-                } catch (error) {
-                    contentDiv.appendChild(createTestResult(
-                        test.name,
-                        'ERROR',
-                        `Test failed: ${error.message}`
-                    ));
-                }
+            try {
+                const response = await fetch(`${API_BASE_URL}/members/renew`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                resultDiv.innerHTML = JSON.stringify(result, null, 2);
+                resultDiv.className = result.status === 'success' ? 'result success' : 'result error';
+            } catch (error) {
+                resultDiv.innerHTML = `Error: ${error.message}`;
+                resultDiv.className = 'result error';
             }
-            
-            updateSummary();
         }
-
-        function clearResults() {
-            testCount = 0;
-            successCount = 0;
-            warningCount = 0;
-            errorCount = 0;
+        
+        async function checkStatus() {
+            const resultDiv = document.getElementById('statusResult');
+            resultDiv.innerHTML = 'Checking...';
             
-            document.getElementById('testResults').innerHTML = '';
-            updateSummary();
+            const input = document.getElementById('statusInput').value;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/members/status?membership_id=${input}`);
+                const result = await response.json();
+                resultDiv.innerHTML = JSON.stringify(result, null, 2);
+                resultDiv.className = result.status === 'success' ? 'result success' : 'result error';
+            } catch (error) {
+                resultDiv.innerHTML = `Error: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
         }
-
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('🔧 API Diagnostic Tool Loaded');
-            console.log('📍 Current Domain:', window.location.origin);
-            console.log('📍 API Base URL:', API_BASE_URL);
+        
+        async function getActiveMembers() {
+            const resultDiv = document.getElementById('activeResult');
+            resultDiv.innerHTML = 'Loading...';
             
-            // Auto-run quick test after 2 seconds
-            setTimeout(runQuickTest, 2000);
-        });
+            try {
+                const response = await fetch(`${API_BASE_URL}/members/active`);
+                const result = await response.json();
+                resultDiv.innerHTML = JSON.stringify(result, null, 2);
+                resultDiv.className = 'result success';
+            } catch (error) {
+                resultDiv.innerHTML = `Error: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+        
+        async function testCallback() {
+            const resultDiv = document.getElementById('callbackResult');
+            resultDiv.innerHTML = 'Processing...';
+            
+            try {
+                const data = JSON.parse(document.getElementById('callbackData').value);
+                
+                const response = await fetch(`${API_BASE_URL}/payments/mpesa-callback`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                resultDiv.innerHTML = JSON.stringify(result, null, 2);
+                resultDiv.className = 'result success';
+            } catch (error) {
+                resultDiv.innerHTML = `Error: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+        
+        async function getStats() {
+            const resultDiv = document.getElementById('statsResult');
+            resultDiv.innerHTML = 'Loading...';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/admin/stats`);
+                const result = await response.json();
+                resultDiv.innerHTML = JSON.stringify(result, null, 2);
+                resultDiv.className = 'result success';
+            } catch (error) {
+                resultDiv.innerHTML = `Error: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
     </script>
 </body>
 </html>

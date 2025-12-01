@@ -40,3 +40,24 @@ Header always set Access-Control-Allow-Headers "Content-Type, Authorization, x-a
 <FilesMatch "\.(html|htm)$">
     Header set Cache-Control "max-age=3600, must-revalidate"
 </FilesMatch>
+
+# Allow access to test pages
+<Files "test-callback.html">
+    Order Allow,Deny
+    Allow from all
+</Files>
+
+<Files "api-test.html">
+    Order Allow,Deny
+    Allow from all
+</Files>
+
+<Files "test-php.php">
+    Order Allow,Deny
+    Allow from all
+</Files>
+
+# Redirect test pages to actual files
+RewriteRule ^test-callback$ /test-callback.html [L]
+RewriteRule ^api-test$ /api-test.html [L]
+RewriteRule ^php-test$ /test-php.php [L]

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test M-Pesa Callback - Msingi Gym</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .test-box {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 M-Pesa Callback Tester</h1>
+        <p>Test if your callback URL is working with Safaricom M-Pesa</p>
+        
+        <div class="test-box">
+            <h3>1. Test GET Request (Validation)</h3>
+            <p>M-Pesa sends GET first to validate your callback URL</p>
+            <button onclick="testGetCallback()">Test GET Callback</button>
+            <div id="getResult" class="result"></div>
+        </div>
+        
+        <div class="test-box">
+            <h3>2. Test POST Request (Payment Callback)</h3>
+            <p>Simulate a real M-Pesa payment callback</p>
+            <button onclick="testPostCallback()">Test POST Callback</button>
+            <div id="postResult" class="result"></div>
+        </div>
+        
+        <div class="test-box">
+            <h3>3. Test Database Update</h3>
+            <p>Test if payment updates user in database</p>
+            <input type="text" id="testPhone" placeholder="254712345678" value="254712345678">
+            <button onclick="testDatabaseUpdate()">Test Database</button>
+            <div id="dbResult" class="result"></div>
+        </div>
+        
+        <div class="test-box">
+            <h3>4. Full Integration Test</h3>
+            <p>Complete test with sample payment data</p>
+            <button onclick="runFullTest()">Run Full Test</button>
+            <div id="fullResult" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = window.location.origin + '/api';
+        
+        async function testGetCallback() {
+            const resultDiv = document.getElementById('getResult');
+            resultDiv.innerHTML = 'Testing...';
+            resultDiv.className = 'result info';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/payments/mpesa-callback`);
+                const data = await response.json();
+                
+                if (data.ResultCode === 0) {
+                    resultDiv.innerHTML = `✅ SUCCESS: ${data.ResultDesc}\n\n` + 
+                                         JSON.stringify(data, null, 2);
+                    resultDiv.className = 'result success';
+                } else {
+                    resultDiv.innerHTML = `❌ FAILED: ${data.ResultDesc}`;
+                    resultDiv.className = 'result error';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `❌ ERROR: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+        
+        async function testPostCallback() {
+            const resultDiv = document.getElementById('postResult');
+            resultDiv.innerHTML = 'Testing...';
+            resultDiv.className = 'result info';
+            
+            const testData = {
+                Body: {
+                    stkCallback: {
+                        MerchantRequestID: "test-" + Date.now(),
+                        CheckoutRequestID: "test-checkout-" + Date.now(),
+                        ResultCode: 0,
+                        ResultDesc: "The service request is processed successfully.",
+                        CallbackMetadata: {
+                            Item: [
+                                { Name: "Amount", Value: 2 },
+                                { Name: "MpesaReceiptNumber", Value: "TEST" + Date.now() },
+                                { Name: "TransactionDate", Value: "20240115102036" },
+                                { Name: "PhoneNumber", Value: "254712345678" }
+                            ]
+                        }
+                    }
+                }
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/payments/mpesa-callback`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testData)
+                });
+                
+                const data = await response.json();
+                resultDiv.innerHTML = `Response:\n\n` + JSON.stringify(data, null, 2);
+                resultDiv.className = 'result success';
+            } catch (error) {
+                resultDiv.innerHTML = `❌ ERROR: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+        
+        async function testDatabaseUpdate() {
+            const phone = document.getElementById('testPhone').value;
+            const resultDiv = document.getElementById('dbResult');
+            resultDiv.innerHTML = 'Testing...';
+            resultDiv.className = 'result info';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/members/status?phone=${phone}`);
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `Database Status:\n\n` + JSON.stringify(data, null, 2);
+                resultDiv.className = 'result success';
+            } catch (error) {
+                resultDiv.innerHTML = `❌ ERROR: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+        
+        async function runFullTest() {
+            const resultDiv = document.getElementById('fullResult');
+            resultDiv.innerHTML = 'Running full test...';
+            resultDiv.className = 'result info';
+            
+            let results = [];
+            
+            // Test 1: Health check
+            try {
+                const health = await fetch(`${API_BASE_URL}/health`);
+                const healthData = await health.json();
+                results.push({ test: 'Health Check', status: '✅', data: healthData });
+            } catch (e) {
+                results.push({ test: 'Health Check', status: '❌', error: e.message });
+            }
+            
+            // Test 2: GET callback
+            try {
+                const getTest = await fetch(`${API_BASE_URL}/payments/mpesa-callback`);
+                const getData = await getTest.json();
+                results.push({ test: 'GET Callback', status: getData.ResultCode === 0 ? '✅' : '❌', data: getData });
+            } catch (e) {
+                results.push({ test: 'GET Callback', status: '❌', error: e.message });
+            }
+            
+            // Display results
+            resultDiv.innerHTML = results.map(r => 
+                `${r.status} ${r.test}\n${JSON.stringify(r.data || r.error, null, 2)}`
+            ).join('\n\n');
+            resultDiv.className = 'result success';
+        }
+    </script>
+</body>
+</html>
