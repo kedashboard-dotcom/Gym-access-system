@@ -1,90 +1,52 @@
-<?php
-header('Content-Type: text/plain');
+const express = require('express');
+const router = express.Router();
+const paymentController = require('../controllers/paymentController');
 
-echo "🔧 Testing Msingi Gym Configuration\n\n";
+// M-Pesa sends GET request to validate callback URL
+router.get('/mpesa-callback', (req, res) => {
+  console.log('✅ M-Pesa callback URL validation received (GET request)');
+  console.log('Query params:', req.query);
+  console.log('Headers:', req.headers);
+  
+  // Send success response to validate the endpoint
+  res.status(200).json({
+    ResultCode: 0,
+    ResultDesc: "Callback URL is valid and ready to receive payments"
+  });
+});
 
-// CORRECT PATH: .env is in the parent directory of test files
-$envFile = dirname(__DIR__) . '/.env';
-echo "Looking for .env at: $envFile\n\n";
+// M-Pesa callback endpoint (POST for actual payments)
+router.post('/mpesa-callback', paymentController.handleCallback);
 
-if (!file_exists($envFile)) {
-    die("❌ .env file not found!\nCheck if it exists at: $envFile\n");
-}
+// Payment verification (manual)
+router.post('/verify', paymentController.verifyPayment);
 
-echo "✅ .env file found!\n\n";
-
-// Parse .env file
-$config = [];
-$lines = explode("\n", file_get_contents($envFile));
-
-echo "📋 CURRENT CONFIGURATION:\n";
-echo "========================\n";
-
-foreach ($lines as $line) {
-    $line = trim($line);
-    if (empty($line) || strpos($line, '#') === 0) continue;
-    
-    if (strpos($line, '=') !== false) {
-        list($key, $value) = explode('=', $line, 2);
-        $key = trim($key);
-        $value = trim($value);
-        $config[$key] = $value;
-        
-        // Show important configs
-        if (in_array($key, ['DEFAULT_MEMBERSHIP_AMOUNT', 'MEMBERSHIP_DURATION_DAYS', 
-                           'PREMIUM_MEMBERSHIP_AMOUNT', 'VIP_MEMBERSHIP_AMOUNT',
-                           'MPESA_ENVIRONMENT', 'NODE_ENV', 'DB_NAME'])) {
-            echo "$key: $value\n";
+// Debug endpoint to test callback
+router.post('/test-callback', (req, res) => {
+  console.log('🧪 Test callback received:', req.body);
+  
+  // Simulate M-Pesa callback
+  const testData = {
+    Body: {
+      stkCallback: {
+        MerchantRequestID: "29115-34620561-1",
+        CheckoutRequestID: "ws_CO_191220191020363925",
+        ResultCode: 0,
+        ResultDesc: "The service request is processed successfully.",
+        CallbackMetadata: {
+          Item: [
+            { Name: "Amount", Value: 2 },
+            { Name: "MpesaReceiptNumber", Value: "RE123456789" },
+            { Name: "TransactionDate", Value: "20240115102036" },
+            { Name: "PhoneNumber", Value: "254712345678" }
+          ]
         }
+      }
     }
-}
+  };
+  
+  // Process the test callback
+  paymentController.handleCallback({ body: testData }, res);
+});
 
-echo "\n🧪 TEST CONFIGURATION:\n";
-echo "=====================\n";
-echo "Standard Plan: KSh " . ($config['DEFAULT_MEMBERSHIP_AMOUNT'] ?? 'NOT SET') . "\n";
-echo "Premium Plan: KSh " . ($config['PREMIUM_MEMBERSHIP_AMOUNT'] ?? 'NOT SET') . "\n";
-echo "VIP Plan: KSh " . ($config['VIP_MEMBERSHIP_AMOUNT'] ?? 'NOT SET') . "\n";
-echo "Duration: " . ($config['MEMBERSHIP_DURATION_DAYS'] ?? 'NOT SET') . " days\n";
-echo "M-Pesa Mode: " . ($config['MPESA_ENVIRONMENT'] ?? 'NOT SET') . "\n";
-
-echo "\n📊 DATABASE TEST:\n";
-echo "================\n";
-
-if (isset($config['DB_HOST']) && isset($config['DB_USER']) && isset($config['DB_NAME'])) {
-    echo "Database: " . $config['DB_NAME'] . "\n";
-    echo "Host: " . $config['DB_HOST'] . "\n";
-    echo "User: " . $config['DB_USER'] . "\n";
-    
-    // Try to connect
-    $mysqli = @new mysqli(
-        $config['DB_HOST'], 
-        $config['DB_USER'], 
-        $config['DB_PASSWORD'] ?? '', 
-        $config['DB_NAME']
-    );
-    
-    if ($mysqli->connect_error) {
-        echo "❌ Connection Failed: " . $mysqli->connect_error . "\n";
-    } else {
-        echo "✅ Connection Successful!\n";
-        
-        // Check tables
-        $result = $mysqli->query("SHOW TABLES");
-        if ($result) {
-            echo "📊 Tables found: ";
-            $tables = [];
-            while ($row = $result->fetch_array()) {
-                $tables[] = $row[0];
-            }
-            echo implode(', ', $tables) . "\n";
-        }
-        
-        $mysqli->close();
-    }
-} else {
-    echo "⚠️ Database credentials not fully set in .env\n";
-}
-
-echo "\n✅ CONFIGURATION CHECK COMPLETE!\n";
-echo "🌐 Test Registration with: KSh " . ($config['DEFAULT_MEMBERSHIP_AMOUNT'] ?? '100') . "\n";
-?>
+module.exports = router;

@@ -22,9 +22,41 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Simple request logging
+// Simple request logging with detailed M-Pesa callback logging
 app.use((req, res, next) => {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    
+    // Special logging for M-Pesa callbacks
+    if (req.url.includes('mpesa-callback')) {
+        console.log('🔔 M-Pesa Callback Detected!');
+        console.log('   IP Address:', req.ip);
+        console.log('   User Agent:', req.headers['user-agent']);
+        console.log('   Headers:', JSON.stringify(req.headers, null, 2));
+        
+        if (req.method === 'GET') {
+            console.log('   📥 GET Request for validation');
+            console.log('   Query Params:', req.query);
+        }
+        
+        if (req.method === 'POST') {
+            console.log('   📥 POST Request for payment callback');
+            // Capture POST body
+            let body = '';
+            req.on('data', chunk => {
+                body += chunk.toString();
+            });
+            req.on('end', () => {
+                console.log('   📦 POST Body:', body);
+                try {
+                    req.body = JSON.parse(body);
+                } catch (e) {
+                    req.body = body;
+                }
+                next();
+            });
+            return;
+        }
+    }
     next();
 });
 
@@ -46,7 +78,7 @@ db.testConnection()
 const User = require('./models/User');
 
 // =====================
-// AXTRAXNG TEST ENDPOINTS - ADD THESE FIRST
+// AXTRAXNG TEST ENDPOINTS
 // =====================
 
 // AxtraxNG Connection Test
@@ -196,6 +228,157 @@ app.delete('/api/axtrax/clear-mock', (req, res) => {
 });
 
 // =====================
+// M-PESA CALLBACK ENDPOINTS (CRITICAL FIX)
+// =====================
+
+// M-Pesa sends GET request first to validate callback URL
+app.get('/api/payments/mpesa-callback', (req, res) => {
+    console.log('✅ M-Pesa callback URL validation received (GET request)');
+    console.log('   Query params:', req.query);
+    console.log('   Validation from IP:', req.ip);
+    
+    // Send success response to validate the endpoint
+    res.status(200).json({
+        ResultCode: 0,
+        ResultDesc: "Callback URL is valid and ready to receive payments",
+        validation: {
+            timestamp: new Date().toISOString(),
+            method: 'GET',
+            validated: true,
+            server: 'Msingi Gym System'
+        }
+    });
+});
+
+// M-Pesa callback handler for actual payments (POST)
+app.post('/api/payments/mpesa-callback', async (req, res) => {
+    try {
+        console.log('💰 M-Pesa payment callback received (POST request)');
+        console.log('   Request Body:', JSON.stringify(req.body, null, 2));
+        
+        const mpesaService = require('./config/mpesa');
+        const callbackResult = mpesaService.handleCallback(req.body);
+
+        if (callbackResult.success) {
+            const { metadata } = callbackResult;
+            
+            console.log('✅ Payment successful:', {
+                receipt: metadata.mpesaReceiptNumber,
+                amount: metadata.amount,
+                phone: metadata.phoneNumber
+            });
+            
+            try {
+                // Find and update user by phone number
+                const user = await User.findByPhone(metadata.phoneNumber);
+                if (user) {
+                    console.log('👤 User found:', user.membership_id, user.name);
+                    
+                    const paymentData = {
+                        mpesa_receipt: metadata.mpesaReceiptNumber,
+                        amount: metadata.amount,
+                        payment_date: new Date()
+                    };
+
+                    const isRenewal = user.status === 'active';
+                    if (isRenewal) {
+                        await User.extendMembership(user.membership_id, paymentData);
+                        console.log('🔄 Membership extended for:', user.membership_id);
+                    } else {
+                        await User.updateAfterPayment(user.membership_id, paymentData);
+                        console.log('🆕 New membership activated for:', user.membership_id);
+                    }
+                    
+                    // AXTRAXNG INTEGRATION - Sync after successful payment
+                    try {
+                        const axtraxService = require('./utils/axtraxIntegration');
+                        console.log('🔄 AxtraxNG sync after payment for:', user.membership_id);
+                        
+                        const axtraxResult = await axtraxService.syncUserWithAxtrax(user);
+                        console.log('✅ AxtraxNG sync completed:', axtraxResult);
+                        
+                    } catch (axtraxError) {
+                        console.log('⚠️ AxtraxNG sync in callback failed (non-critical):', axtraxError.message);
+                    }
+                } else {
+                    console.log('❌ User not found for phone:', metadata.phoneNumber);
+                }
+            } catch (dbError) {
+                console.log('❌ Payment update failed:', dbError.message);
+            }
+
+            res.json({ 
+                ResultCode: 0, 
+                ResultDesc: "Success",
+                processed: true,
+                timestamp: new Date().toISOString()
+            });
+        } else {
+            console.log('❌ M-Pesa payment failed:', callbackResult.error);
+            res.json({ 
+                ResultCode: 1, 
+                ResultDesc: "Failed",
+                error: callbackResult.error
+            });
+        }
+
+    } catch (error) {
+        console.error('🔥 Callback processing error:', error.message);
+        res.json({ 
+            ResultCode: 1, 
+            ResultDesc: "Error processing callback"
+        });
+    }
+});
+
+// Test M-Pesa callback endpoint
+app.post('/api/payments/test-callback', async (req, res) => {
+    try {
+        console.log('🧪 Test callback received');
+        
+        // Create test callback data
+        const testData = {
+            Body: {
+                stkCallback: {
+                    MerchantRequestID: "test-" + Date.now(),
+                    CheckoutRequestID: "test-checkout-" + Date.now(),
+                    ResultCode: 0,
+                    ResultDesc: "The service request is processed successfully.",
+                    CallbackMetadata: {
+                        Item: [
+                            { Name: "Amount", Value: 2 },
+                            { Name: "MpesaReceiptNumber", Value: "TEST" + Date.now() },
+                            { Name: "TransactionDate", Value: new Date().toISOString().replace(/[-:]/g, '').split('.')[0] },
+                            { Name: "PhoneNumber", Value: "254712345678" }
+                        ]
+                    }
+                }
+            }
+        };
+        
+        console.log('Test data:', JSON.stringify(testData, null, 2));
+        
+        // Process the test callback
+        const mpesaService = require('./config/mpesa');
+        const callbackResult = mpesaService.handleCallback(testData);
+        
+        res.json({
+            status: 'success',
+            message: 'Test callback processed',
+            callbackResult: callbackResult,
+            testData: testData
+        });
+        
+    } catch (error) {
+        console.error('Test callback error:', error);
+        res.status(500).json({
+            status: 'error',
+            message: error.message
+        });
+    }
+});
+
+// =====================
 // DEBUG ENDPOINT
 // =====================
 
@@ -203,7 +386,7 @@ app.post('/api/debug-registration', async (req, res) => {
     try {
         console.log('🔍 DEBUG: Registration attempt:', req.body);
         
-        const { name, phone, amount = 2000 } = req.body;
+        const { name, phone, amount = 2 } = req.body;  // Changed default to 2 bob
         
         // Test M-Pesa service directly
         console.log('🔍 Testing M-Pesa service...');
@@ -213,7 +396,8 @@ app.post('/api/debug-registration', async (req, res) => {
             environment: mpesaService.environment,
             businessShortCode: mpesaService.businessShortCode,
             hasConsumerKey: !!mpesaService.consumerKey,
-            hasConsumerSecret: !!mpesaService.consumerSecret
+            hasConsumerSecret: !!mpesaService.consumerSecret,
+            callbackURL: mpesaService.callbackURL
         });
         
         // Try to generate access token
@@ -229,7 +413,7 @@ app.post('/api/debug-registration', async (req, res) => {
         const axtraxService = require('./utils/axtraxIntegration');
         console.log('🔍 AxtraxNG Enabled:', process.env.AXTRAX_ENABLED === 'true');
         
-        // Try STK Push
+        // Try STK Push with 2 bob
         try {
             const response = await mpesaService.initiateSTKPush(
                 phone,
@@ -245,7 +429,8 @@ app.post('/api/debug-registration', async (req, res) => {
                 data: {
                     mpesa: response,
                     axtrax_enabled: process.env.AXTRAX_ENABLED === 'true',
-                    axtrax_base_url: process.env.AXTRAX_BASE_URL
+                    axtrax_base_url: process.env.AXTRAX_BASE_URL,
+                    callback_url_configured: !!mpesaService.callbackURL
                 }
             });
             
@@ -254,7 +439,8 @@ app.post('/api/debug-registration', async (req, res) => {
             res.json({
                 status: 'error',
                 message: 'M-Pesa failed: ' + stkError.message,
-                axtrax_enabled: process.env.AXTRAX_ENABLED === 'true'
+                axtrax_enabled: process.env.AXTRAX_ENABLED === 'true',
+                callback_url: mpesaService.callbackURL
             });
         }
         
@@ -284,10 +470,13 @@ app.get('/api/health', async (req, res) => {
             environment: process.env.NODE_ENV,
             database: 'connected',
             axtrax_enabled: process.env.AXTRAX_ENABLED === 'true',
+            mpesa_configured: !!process.env.MPESA_CONSUMER_KEY,
+            callback_url: process.env.MPESA_CALLBACK_URL,
             services: {
                 database: 'connected',
                 mpesa: 'configured',
-                axtrax: process.env.AXTRAX_ENABLED === 'true' ? 'enabled' : 'disabled'
+                axtrax: process.env.AXTRAX_ENABLED === 'true' ? 'enabled' : 'disabled',
+                callback_validation: 'GET /api/payments/mpesa-callback available'
             }
         });
     } catch (error) {
@@ -296,7 +485,8 @@ app.get('/api/health', async (req, res) => {
             message: 'Msingi Gym System API is running (database offline)',
             timestamp: new Date().toISOString(),
             database: 'disconnected',
-            axtrax_enabled: process.env.AXTRAX_ENABLED === 'true'
+            axtrax_enabled: process.env.AXTRAX_ENABLED === 'true',
+            mpesa_configured: !!process.env.MPESA_CONSUMER_KEY
         });
     }
 });
@@ -306,7 +496,7 @@ app.post('/api/members/register', async (req, res) => {
     try {
         console.log('Registration attempt:', req.body);
         
-        const { name, phone, amount = 2000, membership_type = 'standard' } = req.body;
+        const { name, phone, amount = 2, membership_type = 'standard' } = req.body;  // Changed default to 2 bob
 
         // Validation
         if (!name || !phone) {
@@ -439,7 +629,7 @@ app.post('/api/members/renew', async (req, res) => {
     try {
         console.log('Renewal attempt:', req.body);
         
-        const { membership_id, phone, amount = 2000 } = req.body;
+        const { membership_id, phone, amount = 2 } = req.body;  // Changed default to 2 bob
 
         if (!membership_id && !phone) {
             return res.status(400).json({
@@ -634,65 +824,6 @@ app.post('/api/check-mpesa', async (req, res) => {
     }
 });
 
-// M-PESA CALLBACK HANDLER (UPDATED WITH AXTRAXNG)
-app.post('/api/payments/mpesa-callback', async (req, res) => {
-    try {
-        console.log('M-Pesa callback received');
-        
-        const mpesaService = require('./config/mpesa');
-        const callbackResult = mpesaService.handleCallback(req.body);
-
-        if (callbackResult.success) {
-            const { metadata } = callbackResult;
-            
-            try {
-                // Find and update user
-                const user = await User.findByMembershipID(metadata.PhoneNumber);
-                if (user) {
-                    const paymentData = {
-                        mpesa_receipt: metadata.MpesaReceiptNumber,
-                        amount: metadata.Amount,
-                        payment_date: new Date()
-                    };
-
-                    const isRenewal = user.status === 'active';
-                    if (isRenewal) {
-                        await User.extendMembership(user.membership_id, paymentData);
-                    } else {
-                        await User.updateAfterPayment(user.membership_id, paymentData);
-                    }
-                    
-                    console.log('Payment processed for:', user.membership_id);
-                    
-                    // AXTRAXNG INTEGRATION - Sync after successful payment
-                    try {
-                        const axtraxService = require('./utils/axtraxIntegration');
-                        console.log('🔄 AxtraxNG sync after payment for:', user.membership_id);
-                        
-                        const axtraxResult = await axtraxService.syncUserWithAxtrax(user);
-                        console.log('✅ AxtraxNG sync completed:', axtraxResult);
-                        
-                    } catch (axtraxError) {
-                        console.log('⚠️ AxtraxNG sync in callback failed:', axtraxError.message);
-                        // Non-critical - continue
-                    }
-                }
-            } catch (dbError) {
-                console.log('Payment update failed:', dbError.message);
-            }
-
-            res.json({ ResultCode: 0, ResultDesc: "Success" });
-        } else {
-            console.log('M-Pesa payment failed:', callbackResult.error);
-            res.json({ ResultCode: 1, ResultDesc: "Failed" });
-        }
-
-    } catch (error) {
-        console.error('Callback error:', error.message);
-        res.json({ ResultCode: 1, ResultDesc: "Error" });
-    }
-});
-
 // ACTIVE MEMBERS (ADMIN)
 app.get('/api/members/active', async (req, res) => {
     try {
@@ -734,7 +865,8 @@ app.get('/api/admin/stats', async (req, res) => {
                 services: {
                     database: 'connected',
                     mpesa: 'configured', 
-                    axtrax: process.env.AXTRAX_ENABLED === 'true' ? 'enabled' : 'disabled'
+                    axtrax: process.env.AXTRAX_ENABLED === 'true' ? 'enabled' : 'disabled',
+                    callback_endpoint: 'GET /api/payments/mpesa-callback available'
                 }
             }
         });
@@ -776,6 +908,7 @@ app.use('/api/*', (req, res) => {
     res.status(404).json({
         status: 'error',
         message: 'API endpoint not found: ' + req.originalUrl,
+        method: req.method,
         available_endpoints: [
             'GET /api/health',
             'GET /api/test-axtrax',
@@ -788,7 +921,9 @@ app.use('/api/*', (req, res) => {
             'GET /api/members/status',
             'POST /api/check-mpesa',
             'GET /api/members/active',
-            'POST /api/payments/mpesa-callback',
+            'GET /api/payments/mpesa-callback',  // ✅ ADDED: GET callback
+            'POST /api/payments/mpesa-callback', // ✅ ADDED: POST callback
+            'POST /api/payments/test-callback',  // ✅ ADDED: Test callback
             'GET /api/admin/stats'
         ]
     });
@@ -819,7 +954,9 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`📍 Port: ${PORT}`);
     console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`📍 Database: ${process.env.DB_NAME || 'Not configured'}`);
+    console.log(`📍 M-Pesa: ${process.env.MPESA_ENVIRONMENT || 'Not set'}`);
     console.log(`📍 AxtraxNG: ${process.env.AXTRAX_ENABLED === 'true' ? 'ENABLED' : 'DISABLED'}`);
+    console.log(`📍 Callback URL: ${process.env.MPESA_CALLBACK_URL || 'Not set'}`);
     console.log('='.repeat(60));
     console.log('📋 Available Endpoints:');
     console.log('   • GET  /api/health');
@@ -833,10 +970,13 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log('   • GET  /api/members/status');
     console.log('   • POST /api/check-mpesa');
     console.log('   • GET  /api/members/active');
-    console.log('   • POST /api/payments/mpesa-callback');
+    console.log('   • GET  /api/payments/mpesa-callback  ← M-Pesa validation ✅');  // ✅
+    console.log('   • POST /api/payments/mpesa-callback  ← M-Pesa payments ✅');    // ✅
+    console.log('   • POST /api/payments/test-callback  ← Test callback ✅');      // ✅
     console.log('   • GET  /api/admin/stats');
     console.log('='.repeat(60));
-    console.log('✅ Server ready! Test AxtraxNG: https://msingi.co.ke/api/test-axtrax');
+    console.log('✅ Server ready! M-Pesa callbacks should work now.');
+    console.log('✅ Test callback validation: https://msingi.co.ke/api/payments/mpesa-callback');
     console.log('='.repeat(60));
 });
 
