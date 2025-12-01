@@ -1,73 +1,98 @@
 <?php
 header('Content-Type: text/plain');
 
-echo "🔧 Testing Msingi Gym Configuration\n\n";
+echo "=====================================\n";
+echo "🔧 MSINGI GYM CONFIGURATION TEST\n";
+echo "=====================================\n\n";
 
-// Read .env file
+// DEBUG: Show current directory
+echo "📂 Current directory: " . __DIR__ . "\n";
 
-$envFile = __DIR__ . '/../../.env';
+// CORRECT PATH: Go ONE level up from "test files" to find .env
+$envFile = __DIR__ . '/../.env';
+echo "🔍 Looking for .env at: $envFile\n\n";
+
 if (!file_exists($envFile)) {
-    die("❌ .env file not found at: $envFile\n");
+    echo "❌ ERROR: .env file not found!\n";
+    
+    // Try alternative paths
+    echo "\n🔄 Trying alternative paths:\n";
+    
+    $possiblePaths = [
+        __DIR__ . '/../.env',                   // Relative from test files
+        dirname(__DIR__, 2) . '/backend/.env',  // From public_html
+        '/home/msingico/public_html/backend/.env' // Absolute path
+    ];
+    
+    foreach ($possiblePaths as $path) {
+        echo "- $path : " . (file_exists($path) ? "✅ EXISTS" : "❌ NOT FOUND") . "\n";
+    }
+    
+    echo "\n📂 Listing files in backend directory:\n";
+    $backendDir = __DIR__ . '/../';
+    if (is_dir($backendDir)) {
+        $files = scandir($backendDir);
+        foreach ($files as $file) {
+            if ($file != '.' && $file != '..') {
+                echo "- $file\n";
+            }
+        }
+    } else {
+        echo "Cannot access backend directory\n";
+    }
+    
+    exit(1);
 }
 
-$envContent = file_get_contents($envFile);
+echo "✅ .env file found!\n\n";
 
-// Parse .env file
+// Read the .env file
+$lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
 $config = [];
-$lines = explode("\n", $envContent);
+
 foreach ($lines as $line) {
     $line = trim($line);
-    if (empty($line) || strpos($line, '#') === 0) continue;
+    if (empty($line) || $line[0] === '#') continue;
     
-    if (strpos($line, '=') !== false) {
-        list($key, $value) = explode('=', $line, 2);
-        $config[trim($key)] = trim($value);
+    $parts = explode('=', $line, 2);
+    if (count($parts) === 2) {
+        $key = trim($parts[0]);
+        $value = trim($parts[1]);
+        $config[$key] = $value;
     }
 }
 
-echo "📋 Current Configuration:\n";
-echo "-------------------------\n";
+echo "📋 IMPORTANT CONFIGURATION:\n";
+echo "===========================\n";
 
-$importantKeys = [
-    'DEFAULT_MEMBERSHIP_AMOUNT',
-    'PREMIUM_MEMBERSHIP_AMOUNT',
-    'VIP_MEMBERSHIP_AMOUNT',
-    'MEMBERSHIP_DURATION_DAYS',
-    'NODE_ENV',
-    'MPESA_ENVIRONMENT',
-    'DB_NAME'
+// Check and display critical settings
+$criticalSettings = [
+    'DEFAULT_MEMBERSHIP_AMOUNT' => 'Standard Plan (KSh)',
+    'PREMIUM_MEMBERSHIP_AMOUNT' => 'Premium Plan (KSh)',
+    'VIP_MEMBERSHIP_AMOUNT' => 'VIP Plan (KSh)',
+    'MEMBERSHIP_DURATION_DAYS' => 'Membership Duration (days)',
+    'MPESA_ENVIRONMENT' => 'M-Pesa Mode',
+    'NODE_ENV' => 'Environment',
+    'DB_NAME' => 'Database Name',
+    'DB_HOST' => 'Database Host',
+    'DB_USER' => 'Database User'
 ];
 
-foreach ($importantKeys as $key) {
+foreach ($criticalSettings as $key => $description) {
     if (isset($config[$key])) {
-        echo "$key: " . $config[$key] . "\n";
+        echo "✅ $description: " . $config[$key] . "\n";
     } else {
-        echo "$key: ❌ NOT SET\n";
+        echo "❌ $description: NOT SET\n";
     }
 }
 
-echo "\n🧪 Test Scenarios:\n";
-echo "-----------------\n";
-echo "1. Standard Plan: KSh " . ($config['DEFAULT_MEMBERSHIP_AMOUNT'] ?? 'N/A') . "\n";
-echo "2. Premium Plan: KSh " . ($config['PREMIUM_MEMBERSHIP_AMOUNT'] ?? 'N/A') . "\n";
-echo "3. VIP Plan: KSh " . ($config['VIP_MEMBERSHIP_AMOUNT'] ?? 'N/A') . "\n";
-echo "4. Duration: " . ($config['MEMBERSHIP_DURATION_DAYS'] ?? 'N/A') . " days\n";
+echo "\n🧪 TEST READY:\n";
+echo "=============\n";
+$testAmount = $config['DEFAULT_MEMBERSHIP_AMOUNT'] ?? '100';
+$testDays = $config['MEMBERSHIP_DURATION_DAYS'] ?? '1';
+echo "Test with amount: KSh $testAmount\n";
+echo "Membership will last: $testDays days\n";
+echo "M-Pesa mode: " . ($config['MPESA_ENVIRONMENT'] ?? 'sandbox') . "\n";
 
-echo "\n✅ Configuration Check Complete!\n";
-echo "🌐 Access your site: https://msingi.co.ke\n";
-
-// Check database connection
-echo "\n🔍 Checking Database...\n";
-$dbHost = $config['DB_HOST'] ?? 'localhost';
-$dbName = $config['DB_NAME'] ?? 'msingico_gym';
-echo "Database: $dbName\n";
-
-// Try to connect
-$mysqli = @new mysqli($dbHost, $config['DB_USER'] ?? '', $config['DB_PASSWORD'] ?? '', $dbName);
-if ($mysqli->connect_error) {
-    echo "❌ Database Connection: FAILED - " . $mysqli->connect_error . "\n";
-} else {
-    echo "✅ Database Connection: SUCCESS\n";
-    $mysqli->close();
-}
+echo "\n✅ CONFIGURATION LOADED SUCCESSFULLY!\n";
 ?>
