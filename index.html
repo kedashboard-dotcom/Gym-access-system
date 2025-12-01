@@ -71,16 +71,16 @@
                         <div class="form-group">
                             <label for="membershipType">Membership Plan</label>
                             <select id="membershipType" name="membership_type">
-                                <option value="standard">Standard (KSh 2,000/month)</option>
-                                <option value="premium">Premium (KSh 3,500/month)</option>
-                                <option value="vip">VIP (KSh 5,000/month)</option>
+                                <option value="standard">Standard (KSh 2/month)</option>
+                                <option value="premium">Premium (KSh 3/month)</option>
+                                <option value="vip">VIP (KSh 5/month)</option>
                             </select>
                         </div>
 
                         <div class="form-group">
                             <label for="amount">Amount (KSh)</label>
                             <input type="number" id="amount" name="amount" 
-                                   value="2000" min="500" max="50000" required>
+                                   value="2" min="2" max="100" required>
                         </div>
 
                         <button type="submit" class="btn-primary" id="registerBtn">
@@ -107,7 +107,7 @@
                         <div class="form-group">
                             <label for="renewalAmount">Amount (KSh)</label>
                             <input type="number" id="renewalAmount" name="amount" 
-                                   value="2000" min="500" max="50000" required>
+                                   value="2" min="2" max="100" required>
                         </div>
 
                         <div class="divider">
