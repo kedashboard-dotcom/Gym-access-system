@@ -1,5 +1,6 @@
 const axios = require('axios');
 const moment = require('moment');
+const smsService = require('../utils/smsService');
 
 class MpesaService {
     constructor() {
@@ -8,13 +9,13 @@ class MpesaService {
         this.businessShortCode = process.env.MPESA_BUSINESS_SHORTCODE;
         this.passkey = process.env.MPESA_PASSKEY;
         this.callbackURL = process.env.MPESA_CALLBACK_URL;
-        this.environment = process.env.MPESA_ENVIRONMENT || 'sandbox';
+        this.environment = process.env.MPESA_ENVIRONMENT || 'production';
         
         this.baseURL = this.environment === 'production' 
             ? 'https://api.safaricom.co.ke'
             : 'https://sandbox.safaricom.co.ke';
 
-        console.log('🔧 M-Pesa Service Initialized:', {
+        console.log('🔧 M-Pesa Service Initialized (Production):', {
             environment: this.environment,
             businessShortCode: this.businessShortCode,
             hasCredentials: !!(this.consumerKey && this.consumerSecret)
@@ -24,7 +25,7 @@ class MpesaService {
     async generateAccessToken() {
         try {
             if (!this.consumerKey || !this.consumerSecret) {
-                throw new Error('M-Pesa credentials missing. Check .env file');
+                throw new Error('M-Pesa credentials missing');
             }
 
             const auth = Buffer.from(`${this.consumerKey}:${this.consumerSecret}`).toString('base64');
@@ -36,17 +37,10 @@ class MpesaService {
                 timeout: 10000
             });
 
-            if (!response.data.access_token) {
-                throw new Error('No access token received from M-Pesa');
-            }
-
             return response.data.access_token;
         } catch (error) {
-            console.error('❌ M-Pesa Token Generation Failed:', {
-                error: error.response?.data || error.message,
-                url: error.config?.url
-            });
-            throw new Error(`M-Pesa token failed: ${error.response?.data?.errorMessage || error.message}`);
+            console.error('❌ M-Pesa Token Generation Failed:', error.message);
+            throw new Error(`M-Pesa token failed: ${error.message}`);
         }
     }
 
@@ -58,25 +52,15 @@ class MpesaService {
 
     async initiateSTKPush(phone, amount, accountReference, description) {
         try {
-            console.log('🔧 Initiating M-Pesa STK Push:', {
+            console.log('🔧 Initiating M-Pesa STK Push (Production):', {
                 phone,
                 amount,
-                accountReference,
-                environment: this.environment
+                accountReference
             });
 
-            // Validate phone number for sandbox
-            if (this.environment === 'sandbox') {
-                const testNumbers = ['254708374149', '254700000000', '254711111111'];
-                if (!testNumbers.includes(phone)) {
-                    console.log('⚠️ Using non-test number in sandbox. Prompt may not arrive.');
-                }
-                
-                // Force amount to 1 for sandbox testing
-                if (amount > 100) {
-                    console.log('⚠️ Reducing amount to 1 for sandbox testing');
-                    amount = 1;
-                }
+            // Validate amount for production
+            if (amount < 1) {
+                throw new Error('Amount must be at least KSh 1');
             }
 
             const accessToken = await this.generateAccessToken();
@@ -96,7 +80,7 @@ class MpesaService {
                 TransactionDesc: description
             };
 
-            console.log('🔧 Sending STK Push request...');
+            console.log('🔧 Sending STK Push request to M-Pesa...');
 
             const response = await axios.post(
                 `${this.baseURL}/mpesa/stkpush/v1/processrequest`,
@@ -112,7 +96,6 @@ class MpesaService {
 
             console.log('✅ M-Pesa STK Push Response:', {
                 responseCode: response.data.ResponseCode,
-                responseDescription: response.data.ResponseDescription,
                 checkoutRequestId: response.data.CheckoutRequestID
             });
 
@@ -120,23 +103,34 @@ class MpesaService {
                 throw new Error(response.data.ResponseDescription || 'STK Push failed');
             }
 
+            // Log payment initiation for SMS polling
+            try {
+                const db = require('./database');
+                await db.query(
+                    'INSERT INTO payment_logs (checkout_request_id, phone, amount, status, created_at) VALUES (?, ?, ?, ?, ?)',
+                    [response.data.CheckoutRequestID, phone, amount, 'pending', new Date()]
+                );
+                console.log('✅ Payment logged for SMS polling');
+            } catch (dbError) {
+                console.log('⚠️ Failed to log payment for SMS polling:', dbError.message);
+            }
+
             return response.data;
 
         } catch (error) {
             console.error('❌ M-Pesa STK Push Failed:', {
-                error: error.response?.data || error.message,
+                error: error.message,
                 phone: phone,
                 amount: amount
             });
             
-            throw new Error(`M-Pesa payment failed: ${error.response?.data?.errorMessage || error.message}`);
+            throw new Error(`M-Pesa payment failed: ${error.message}`);
         }
     }
 
-    // NEW: SMS Polling - Check payment status
     async checkPaymentStatus(checkoutRequestID) {
         try {
-            console.log('🔍 Checking M-Pesa payment status:', checkoutRequestID);
+            console.log('🔍 Checking M-Pesa payment status for:', checkoutRequestID);
 
             const accessToken = await this.generateAccessToken();
             const { password, timestamp } = this.generatePassword();
@@ -147,8 +141,6 @@ class MpesaService {
                 Timestamp: timestamp,
                 CheckoutRequestID: checkoutRequestID
             };
-
-            console.log('🔍 Sending payment status query...');
 
             const response = await axios.post(
                 `${this.baseURL}/mpesa/stkpushquery/v1/query`,
@@ -162,88 +154,56 @@ class MpesaService {
                 }
             );
 
-            console.log('✅ M-Pesa Status Response:', {
-                resultCode: response.data.ResultCode,
-                resultDesc: response.data.ResultDesc,
-                checkoutRequestId: response.data.CheckoutRequestID
-            });
+            console.log('📊 M-Pesa Status Response:', response.data);
 
-            // Extract callback metadata if payment was successful
-            let metadata = {};
-            if (response.data.ResultCode === '0' && response.data.CallbackMetadata) {
-                response.data.CallbackMetadata.Item.forEach(item => {
-                    metadata[item.Name] = item.Value;
-                });
-            }
-
-            return {
-                ResultCode: response.data.ResultCode,
-                ResultDesc: response.data.ResultDesc,
-                MerchantRequestID: response.data.MerchantRequestID,
-                CheckoutRequestID: response.data.CheckoutRequestID,
-                ...metadata
-            };
+            return response.data;
 
         } catch (error) {
-            console.error('❌ M-Pesa Status Check Failed:', {
-                error: error.response?.data || error.message,
-                checkoutRequestID: checkoutRequestID
-            });
-            
-            // Return a pending status on error for polling to continue
-            return {
-                ResultCode: '1', // Pending
-                ResultDesc: 'Payment status check in progress. Please wait.',
-                CheckoutRequestID: checkoutRequestID
-            };
+            console.error('❌ M-Pesa Status Check Failed:', error.message);
+            throw new Error(`Status check failed: ${error.message}`);
         }
     }
 
-    handleCallback(callbackData) {
+    handleCallback(data) {
         try {
             console.log('🔔 Processing M-Pesa callback...');
-
-            if (!callbackData.Body || !callbackData.Body.stkCallback) {
-                return {
-                    success: false,
-                    error: 'Invalid callback format'
-                };
-            }
-
-            const stkCallback = callbackData.Body.stkCallback;
             
-            if (stkCallback.ResultCode !== 0) {
+            if (!data.Body || !data.Body.stkCallback) {
+                throw new Error('Invalid callback format');
+            }
+
+            const callback = data.Body.stkCallback;
+            
+            if (callback.ResultCode !== 0) {
                 return {
                     success: false,
-                    error: stkCallback.ResultDesc || 'Payment failed'
+                    error: callback.ResultDesc || 'Payment failed'
                 };
             }
 
-            // Extract metadata from successful payment
-            const metadata = {};
-            if (stkCallback.CallbackMetadata && stkCallback.CallbackMetadata.Item) {
-                stkCallback.CallbackMetadata.Item.forEach(item => {
-                    metadata[item.Name.toLowerCase()] = item.Value;
+            // Extract metadata
+            let metadata = {};
+            if (callback.CallbackMetadata && callback.CallbackMetadata.Item) {
+                callback.CallbackMetadata.Item.forEach(item => {
+                    metadata[item.Name] = item.Value;
                 });
             }
 
             return {
                 success: true,
                 metadata: {
-                    mpesaReceiptNumber: metadata.mpesareceiptnumber,
-                    amount: metadata.amount,
-                    phoneNumber: metadata.phonenumber,
-                    transactionDate: metadata.transactiondate,
-                    merchantRequestID: stkCallback.MerchantRequestID,
-                    checkoutRequestID: stkCallback.CheckoutRequestID
+                    amount: metadata.Amount,
+                    mpesaReceiptNumber: metadata.MpesaReceiptNumber,
+                    transactionDate: metadata.TransactionDate,
+                    phoneNumber: metadata.PhoneNumber
                 }
             };
 
         } catch (error) {
-            console.error('❌ Callback processing error:', error.message);
+            console.error('❌ Callback processing error:', error);
             return {
                 success: false,
-                error: 'Failed to process callback'
+                error: error.message
             };
         }
     }
