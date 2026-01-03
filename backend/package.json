@@ -32,3 +32,15 @@
   "author": "Msingi Gym System",
   "license": "MIT"
 }
+
+{
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "mysql2": "^3.6.0",
+    "axios": "^1.6.0",
+    "moment": "^2.29.4",
+    "africastalking": "^0.6.1"
+  }
+}

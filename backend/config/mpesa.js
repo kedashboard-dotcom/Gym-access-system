@@ -132,6 +132,121 @@ class MpesaService {
             throw new Error(`M-Pesa payment failed: ${error.response?.data?.errorMessage || error.message}`);
         }
     }
+
+    // NEW: SMS Polling - Check payment status
+    async checkPaymentStatus(checkoutRequestID) {
+        try {
+            console.log('🔍 Checking M-Pesa payment status:', checkoutRequestID);
+
+            const accessToken = await this.generateAccessToken();
+            const { password, timestamp } = this.generatePassword();
+
+            const requestData = {
+                BusinessShortCode: this.businessShortCode,
+                Password: password,
+                Timestamp: timestamp,
+                CheckoutRequestID: checkoutRequestID
+            };
+
+            console.log('🔍 Sending payment status query...');
+
+            const response = await axios.post(
+                `${this.baseURL}/mpesa/stkpushquery/v1/query`,
+                requestData,
+                {
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 15000
+                }
+            );
+
+            console.log('✅ M-Pesa Status Response:', {
+                resultCode: response.data.ResultCode,
+                resultDesc: response.data.ResultDesc,
+                checkoutRequestId: response.data.CheckoutRequestID
+            });
+
+            // Extract callback metadata if payment was successful
+            let metadata = {};
+            if (response.data.ResultCode === '0' && response.data.CallbackMetadata) {
+                response.data.CallbackMetadata.Item.forEach(item => {
+                    metadata[item.Name] = item.Value;
+                });
+            }
+
+            return {
+                ResultCode: response.data.ResultCode,
+                ResultDesc: response.data.ResultDesc,
+                MerchantRequestID: response.data.MerchantRequestID,
+                CheckoutRequestID: response.data.CheckoutRequestID,
+                ...metadata
+            };
+
+        } catch (error) {
+            console.error('❌ M-Pesa Status Check Failed:', {
+                error: error.response?.data || error.message,
+                checkoutRequestID: checkoutRequestID
+            });
+            
+            // Return a pending status on error for polling to continue
+            return {
+                ResultCode: '1', // Pending
+                ResultDesc: 'Payment status check in progress. Please wait.',
+                CheckoutRequestID: checkoutRequestID
+            };
+        }
+    }
+
+    handleCallback(callbackData) {
+        try {
+            console.log('🔔 Processing M-Pesa callback...');
+
+            if (!callbackData.Body || !callbackData.Body.stkCallback) {
+                return {
+                    success: false,
+                    error: 'Invalid callback format'
+                };
+            }
+
+            const stkCallback = callbackData.Body.stkCallback;
+            
+            if (stkCallback.ResultCode !== 0) {
+                return {
+                    success: false,
+                    error: stkCallback.ResultDesc || 'Payment failed'
+                };
+            }
+
+            // Extract metadata from successful payment
+            const metadata = {};
+            if (stkCallback.CallbackMetadata && stkCallback.CallbackMetadata.Item) {
+                stkCallback.CallbackMetadata.Item.forEach(item => {
+                    metadata[item.Name.toLowerCase()] = item.Value;
+                });
+            }
+
+            return {
+                success: true,
+                metadata: {
+                    mpesaReceiptNumber: metadata.mpesareceiptnumber,
+                    amount: metadata.amount,
+                    phoneNumber: metadata.phonenumber,
+                    transactionDate: metadata.transactiondate,
+                    merchantRequestID: stkCallback.MerchantRequestID,
+                    checkoutRequestID: stkCallback.CheckoutRequestID
+                }
+            };
+
+        } catch (error) {
+            console.error('❌ Callback processing error:', error.message);
+            return {
+                success: false,
+                error: 'Failed to process callback'
+            };
+        }
+    }
 }
 
 module.exports = new MpesaService();
